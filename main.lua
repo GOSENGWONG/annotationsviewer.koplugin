@@ -1071,7 +1071,7 @@ local function measureNoteHeight(note, width, skip_title, skip_info)
         if n > max_lines then n = max_lines end
         h = h + n * (line_h + 2 + NoteItemWidget.lineSpacing()) -- each line has 1px padding above and below, plus the line spacing
     end
-    if note_wrapper:hasUserNote() then
+    if note_wrapper:hasUserNote() and not NoteItemWidget.list_hide_notes then
         -- a bookmark's note sits where a highlight's text would: the info margin below its line
         h = h + (note.bookmark and getInfoMargin() or NoteItemWidget.noteOffset())
         local note_face = NoteItemWidget.noteFace()
@@ -1106,7 +1106,7 @@ local function getLayoutSignature(width)
         tostring(getTruncateLines()), tostring(NoteItemWidget.noteLinesMax()), tostring(getShowInfo()), getInfoFields(), tostring(NoteItemWidget.measure_hide_chapter),
         os.date("%Y%m%d"), -- "Today"/"Yesterday" labels change the info row text
         getSetting("date_year_list", "relevant"), getSetting("date_time_list", "never"), getSetting("date_month", "short"), tostring(NoteItemWidget.twelveHour()),
-        getSetting("info_date_when", "always"), SortState.get(NoteItemWidget.list_single), tostring(getSetting("bm_line_size", nil)), tostring(getSetting("bm_font", nil)), tostring(NoteItemWidget.bmNoteIcon()),
+        getSetting("info_date_when", "always"), SortState.get(NoteItemWidget.list_single), tostring(getSetting("bm_line_size", nil)), tostring(getSetting("bm_font", nil)), tostring(NoteItemWidget.bmNoteIcon()), tostring(NoteItemWidget.list_hide_notes),
     }, "|")
 end
 
@@ -1354,7 +1354,7 @@ function NoteItemWidget:init()
         })
     end
 
-    if note_wrapper:hasUserNote() then
+    if note_wrapper:hasUserNote() and not NoteItemWidget.list_hide_notes then
         table.insert(note_content, VerticalSpan:new{ width = is_bookmark and info_margin or NoteItemWidget.noteOffset() })
 
         local note_face = NoteItemWidget.noteFace()
@@ -1586,7 +1586,7 @@ local function filterToString(filter, skip_presence)
         if filter.notes_presence == "only" then
             table.insert(parts, _("Notes only"))
         elseif filter.notes_presence == "exclude" then
-            table.insert(parts, _("Without notes"))
+            table.insert(parts, _("Highlights only"))
         elseif filter.notes_presence == "bookmarks" then
             table.insert(parts, _("Bookmarks"))
         end
@@ -1708,6 +1708,7 @@ local NotesListWidget = InputContainer:extend{
 -- Sizes that depend on the screen and on whether a filter row is shown.
 function NotesListWidget:computeLayout()
     NoteItemWidget.list_single = self.single_book and true or false -- whose sort order decides the dates
+    NoteItemWidget.list_hide_notes = (self:tabKey() == "highlights")
     self.width = Screen:getWidth()
     self.height = Screen:getHeight()
     self.dimen = Geom:new{ w = self.width, h = self.height }
@@ -1745,15 +1746,6 @@ function NotesListWidget:init()
     self:computeLayout()
     self:syncSortTab()
     self:applyFilter()
-    -- A book (or library) with bookmarks but no highlights or notes opens on the Bookmarks tab
-    -- instead of an empty list
-    if not (self.active_filter and self.active_filter.notes_presence)
-            and self.tab_totals.all == 0 and self.tab_totals.bookmarks > 0 then
-        self.active_filter = self.active_filter or {}
-        self.active_filter.notes_presence = "bookmarks"
-        self:syncSortTab()
-        self:applyFilter()
-    end
     self:calculatePages()
     if Device:hasKeys() then
         self.key_events.GotoPrevPage = { { Input.group.PgBack } }
@@ -1870,23 +1862,25 @@ function NotesListWidget:applyFilter()
             end
         end
         -- Notes presence (the tab) last, so the tab counts can be taken before it.
-        -- Bookmarks only show in their own tab; All, Highlights and Notes leave them out.
+        -- All includes everything; Highlights and Notes count their own content independently.
         local has_note = note.user_note ~= nil and note.user_note ~= ""
-        local tab = is_bm and "bookmarks" or (has_note and "notes" or "highlights")
-        totals[tab] = totals[tab] + 1
-        if not is_bm then totals.all = totals.all + 1 end
+        local has_highlight = note.highlighted_text ~= nil and note.highlighted_text ~= ""
+        totals.all = totals.all + 1
+        if is_bm then totals.bookmarks = totals.bookmarks + 1 end
+        if has_highlight then totals.highlights = totals.highlights + 1 end
+        if has_note and not is_bm then totals.notes = totals.notes + 1 end
         if match then
-            counts[tab] = counts[tab] + 1
-            if not is_bm then counts.all = counts.all + 1 end
+            counts.all = counts.all + 1
+            if is_bm then counts.bookmarks = counts.bookmarks + 1 end
+            if has_highlight then counts.highlights = counts.highlights + 1 end
+            if has_note and not is_bm then counts.notes = counts.notes + 1 end
             local presence = self.active_filter and self.active_filter.notes_presence
             if presence == "bookmarks" then
                 match = is_bm
-            elseif is_bm then
-                match = false
             elseif presence == "only" then
-                match = has_note
+                match = has_note and not is_bm
             elseif presence == "exclude" then
-                match = not has_note
+                match = has_highlight
             end
         end
         if match then table.insert(self.filtered_notes, note) end
@@ -2535,7 +2529,7 @@ function NotesListWidget:buildHeader()
     })
 
     -- 2. tabs: All / Highlights (no note) / Notes / Bookmarks, plus the sort button. The
-    -- Bookmarks tab is only there when some book has bookmarks.
+    -- Bookmarks tab is always shown, even when empty.
     local counts = self.tab_counts or { all = 0, highlights = 0, notes = 0, bookmarks = 0 }
     local presence = self.active_filter and self.active_filter.notes_presence
     local show_counts = getShowTotalNotes()
@@ -2548,10 +2542,8 @@ function NotesListWidget:buildHeader()
         { key = nil,       label = _("All"),        n = counts.all },
         { key = "exclude", label = _("Highlights"), n = counts.highlights },
         { key = "only",    label = _("Notes"),      n = counts.notes },
+        { key = "bookmarks", label = _("Bookmarks"), n = counts.bookmarks or 0 },
     }
-    if (self.tab_totals and self.tab_totals.bookmarks or 0) > 0 or presence == "bookmarks" then
-        table.insert(tab_list, { key = "bookmarks", label = _("Bookmarks"), n = counts.bookmarks or 0 })
-    end
     for i, tab in ipairs(tab_list) do
         local active = (presence == tab.key)
         local text = tab.label .. (show_counts and ("  " .. tab.n) or "")
@@ -3529,7 +3521,7 @@ AllNotesViewer.onShowCurrentBookAnnotations = AllNotesViewer.onShowAnnotationsHe
 AllNotesViewer.onShowAllBookmarksList = AllNotesViewer.onShowBookmarksHere
 AllNotesViewer.onShowCurrentBookBookmarksList = AllNotesViewer.onShowBookmarksHere
 -- "Annotations" in a book's long-press menu (file browser, History, collections, search): opens
--- that book's list (on the Bookmarks tab when the book has only bookmarks). Only shown for a book
+-- that book's list on the All tab. Only shown for a book
 -- with annotations or bookmarks. Added once to KOReader's file dialogs; uses the plugin of the
 -- open file browser or book.
 function AllNotesViewer.addFileDialogButton()
@@ -3669,32 +3661,16 @@ end
 function AllNotesViewer:addToMainMenu(menu_items)
     if self.ui and self.ui.document then
         menu_items.current_book_notes_viewer = {
-            text = _("Annotations"),
+            text = _("Annotations Viewer"),
             sorting_hint = "navi",
             callback = function() self:showCurrentBookNotes() end,
         }
-        -- "Annotations: Bookmarks" next to it, left out while KOReader's own Bookmarks open here
-        -- (that entry then does the same). Read when KOReader builds its menu.
-        if not AllNotesViewer.takeOverOn() then
-            menu_items.current_book_bookmarks_viewer = {
-                text = _("Annotations: Bookmarks"),
-                sorting_hint = "navi",
-                callback = function() self:showCurrentBookNotes("bookmarks") end,
-            }
-        end
     else
         menu_items.all_notes_viewer = {
-            text = _("Annotations"),
+            text = _("Annotations Viewer"),
             sorting_hint = "filemanager_settings",
             callback = function() self:showAllNotes() end,
         }
-        if not AllNotesViewer.takeOverOn() then
-            menu_items.all_bookmarks_viewer = {
-                text = _("Annotations: Bookmarks"),
-                sorting_hint = "filemanager_settings",
-                callback = function() self:showAllNotes("bookmarks") end,
-            }
-        end
     end
 end
 -- Tells an open ReaderUI that the annotation for `note` changed, sending KOReader's own item
@@ -6730,11 +6706,14 @@ function NotesListWidget:showSortPicker(on_done)
     UIManager:show(SortPicker:new{ list = self, on_done = on_done })
 end
 
--- The pickers count what the open tab is about: bookmarks on the Bookmarks tab, annotations
--- (highlights and notes) on the others. An item with nothing of that kind is left out, unless it
--- is already ticked (so it can still be unticked).
+-- The pickers count what the open tab shows: everything on All, and items with the relevant
+-- content on the other tabs. Already-ticked items stay available even at zero so they can be unticked.
 function NotesListWidget:countsHere(n)
-    return (n.bookmark == true) == (self:tabKey() == "bookmarks")
+    local tab = self:tabKey()
+    if tab == "all" then return true end
+    if tab == "bookmarks" then return n.bookmark == true end
+    if tab == "notes" then return not n.bookmark and n.user_note ~= nil and n.user_note ~= "" end
+    return n.highlighted_text ~= nil and n.highlighted_text ~= ""
 end
 function NotesListWidget:pickerItems(items, inc_key, exc_key)
     local af = self.active_filter or {}
