@@ -350,34 +350,24 @@ function AllNotesViewer:showCurrentBookNotes(tab)
     self:showNotesForBook(book_path, book_title, annotations, tab)
 end
 function AllNotesViewer:addToMainMenu(menu_items)
+    local take_over = AllNotesViewer.takeOverOn()
     if self.ui and self.ui.document then
-        menu_items.current_book_notes_viewer = {
-            text = _("Annotations"),
-            sorting_hint = "navi",
-            callback = function() self:showCurrentBookNotes() end,
-        }
-        -- "Annotations: Bookmarks" next to it, left out while KOReader's own Bookmarks open here
-        -- (that entry then does the same). Read when KOReader builds its menu.
-        if not AllNotesViewer.takeOverOn() then
-            menu_items.current_book_bookmarks_viewer = {
-                text = _("Annotations: Bookmarks"),
+        if take_over and menu_items.bookmarks then
+            -- KOReader's own Bookmarks takes this slot: relabel it, its wrapper already opens here
+            menu_items.bookmarks.text = _("Annotations and Bookmarks")
+        else
+            menu_items.current_book_notes_viewer = {
+                text = _("Annotations and Bookmarks"),
                 sorting_hint = "navi",
-                callback = function() self:showCurrentBookNotes("bookmarks") end,
+                callback = function() self:showCurrentBookNotes() end,
             }
         end
     else
         menu_items.all_notes_viewer = {
-            text = _("Annotations"),
+            text = _("Annotations and Bookmarks"),
             sorting_hint = "filemanager_settings",
             callback = function() self:showAllNotes() end,
         }
-        if not AllNotesViewer.takeOverOn() then
-            menu_items.all_bookmarks_viewer = {
-                text = _("Annotations: Bookmarks"),
-                sorting_hint = "filemanager_settings",
-                callback = function() self:showAllNotes("bookmarks") end,
-            }
-        end
     end
 end
 -- "Reload annotations" in the ☰ menu: forget everything read so far (memory and the file in the

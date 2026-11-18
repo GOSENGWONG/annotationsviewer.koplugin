@@ -1,11 +1,10 @@
 # Annotations Viewer — KOReader plugin
 # Translation template
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: annotationsviewer\n"
-"POT-Creation-Date: 2026-11-18 10:37+0800\n"
+"POT-Creation-Date: 2026-11-18 15:23+0800\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -83,11 +82,11 @@ msgstr ""
 msgid "Text indent: "
 msgstr ""
 
-#: anv_core.lua:317 anv_sort.lua:522 main.lua:835
+#: anv_core.lua:317 anv_sort.lua:522 main.lua:833
 msgid "Lighten"
 msgstr ""
 
-#: anv_core.lua:317 anv_sort.lua:522 main.lua:836
+#: anv_core.lua:317 anv_sort.lua:522 main.lua:834
 msgid "Underline"
 msgstr ""
 
@@ -95,7 +94,7 @@ msgstr ""
 msgid "Strikeout"
 msgstr ""
 
-#: anv_core.lua:318 anv_sort.lua:522 main.lua:838
+#: anv_core.lua:318 anv_sort.lua:522 main.lua:836
 msgid "Invert"
 msgstr ""
 
@@ -107,26 +106,26 @@ msgstr ""
 msgid "Bookmark"
 msgstr ""
 
-#: anv_export.lua:236 anv_sheet.lua:297
+#: anv_export.lua:236 anv_sheet.lua:288
 msgid "page"
 msgstr ""
 
-#: anv_export.lua:269 anv_pages.lua:1989
+#: anv_export.lua:269 anv_pages.lua:2001
 msgid "Note"
 msgstr ""
 
-#: anv_export.lua:294 anv_export.lua:295 anv_list.lua:1944 anv_pages.lua:1411
-#: anv_pages.lua:1966
+#: anv_export.lua:294 anv_export.lua:295 anv_list.lua:1944 anv_pages.lua:1423
+#: anv_pages.lua:1978
 msgid "Tags"
 msgstr ""
 
-#: anv_export.lua:308 anv_list.lua:923 anv_list.lua:1221 anv_pages.lua:2021
-#: anv_pages.lua:2047 anv_text.lua:430
+#: anv_export.lua:308 anv_list.lua:923 anv_list.lua:1221 anv_pages.lua:2033
+#: anv_pages.lua:2059 anv_text.lua:430
 msgid "Bookmarks"
 msgstr ""
 
-#: anv_export.lua:308 anv_list.lua:854 anv_list.lua:870 main.lua:161
-#: main.lua:168 main.lua:219 main.lua:339 main.lua:354
+#: anv_export.lua:308 anv_list.lua:857 anv_list.lua:873 main.lua:177
+#: main.lua:184 main.lua:235
 msgid "Annotations"
 msgstr ""
 
@@ -134,19 +133,19 @@ msgstr ""
 msgid "Filter"
 msgstr ""
 
-#: anv_export.lua:383 anv_pages.lua:1950
+#: anv_export.lua:383 anv_pages.lua:1962
 msgid "Plain text"
 msgstr ""
 
-#: anv_export.lua:383 anv_pages.lua:1950
+#: anv_export.lua:383 anv_pages.lua:1962
 msgid "Markdown"
 msgstr ""
 
-#: anv_export.lua:383 anv_pages.lua:1993
+#: anv_export.lua:383 anv_pages.lua:2005
 msgid "One per book"
 msgstr ""
 
-#: anv_export.lua:383 anv_pages.lua:1993
+#: anv_export.lua:383 anv_pages.lua:2005
 msgid "One file"
 msgstr ""
 
@@ -155,12 +154,12 @@ msgstr ""
 msgid "%d of %d files were written."
 msgstr ""
 
-#: anv_item.lua:308 anv_pages.lua:1802 anv_pages.lua:1954 anv_pages.lua:2013
+#: anv_item.lua:308 anv_pages.lua:1814 anv_pages.lua:1966 anv_pages.lua:2025
 #: anv_sort.lua:369 anv_sort.lua:499
 msgid "Chapter"
 msgstr ""
 
-#: anv_item.lua:443 anv_pages.lua:1966
+#: anv_item.lua:443 anv_pages.lua:1978
 msgid "Page"
 msgstr ""
 
@@ -172,101 +171,101 @@ msgstr ""
 msgid "Yesterday"
 msgstr ""
 
-#: anv_list.lua:251 anv_pages.lua:997 anv_pages.lua:1190 anv_pages.lua:1193
+#: anv_list.lua:254 anv_pages.lua:1009 anv_pages.lua:1202 anv_pages.lua:1205
 #: anv_text.lua:374
 msgid "None"
 msgstr ""
 
-#: anv_list.lua:531
+#: anv_list.lua:534
 msgid "Prev"
 msgstr ""
 
-#: anv_list.lua:534
+#: anv_list.lua:537
 msgid "Next"
 msgstr ""
 
-#: anv_list.lua:700 anv_list.lua:713 anv_list.lua:726 anv_list.lua:734
-#: anv_list.lua:738
+#: anv_list.lua:703 anv_list.lua:716 anv_list.lua:729 anv_list.lua:737
+#: anv_list.lua:741
 msgid "Hide"
 msgstr ""
 
-#: anv_list.lua:711 anv_list.lua:713
+#: anv_list.lua:714 anv_list.lua:716
 #, lua-format
 msgid "%d books"
 msgstr ""
 
-#: anv_list.lua:716
+#: anv_list.lua:719
 #, lua-format
 msgid "%d authors"
 msgstr ""
 
-#: anv_list.lua:716
+#: anv_list.lua:719
 #, lua-format
 msgid "%d series"
 msgstr ""
 
-#: anv_list.lua:716
+#: anv_list.lua:719
 #, lua-format
 msgid "%d languages"
 msgstr ""
 
-#: anv_list.lua:732 anv_list.lua:734
+#: anv_list.lua:735 anv_list.lua:737
 #, lua-format
 msgid "%d chapters"
 msgstr ""
 
-#: anv_list.lua:736 anv_list.lua:738
+#: anv_list.lua:739 anv_list.lua:741
 #, lua-format
 msgid "%d tags"
 msgstr ""
 
-#: anv_list.lua:742
+#: anv_list.lua:745
 msgid "Highlight:"
 msgstr ""
 
-#: anv_list.lua:745
+#: anv_list.lua:748
 msgid "Highlight not:"
 msgstr ""
 
-#: anv_list.lua:748
+#: anv_list.lua:751
 msgid "Note:"
 msgstr ""
 
-#: anv_list.lua:751
+#: anv_list.lua:754
 msgid "Note not:"
 msgstr ""
 
-#: anv_list.lua:763 anv_list.lua:820 anv_pages.lua:1360
+#: anv_list.lua:766 anv_list.lua:823 anv_pages.lua:1372
 #, lua-format
 msgid "%d of %d"
 msgstr ""
 
-#: anv_list.lua:794 anv_list.lua:1116
+#: anv_list.lua:797 anv_list.lua:1116
 msgid "Clear all"
 msgstr ""
 
-#: anv_list.lua:918 anv_pages.lua:2364
+#: anv_list.lua:920 anv_pages.lua:2376
 msgid "All"
 msgstr ""
 
-#: anv_list.lua:919 anv_list.lua:1221
+#: anv_list.lua:921 anv_list.lua:1221
 msgid "Highlights"
 msgstr ""
 
-#: anv_list.lua:920 anv_list.lua:1221 anv_pages.lua:1966
+#: anv_list.lua:922 anv_list.lua:1221 anv_pages.lua:1978
 msgid "Notes"
 msgstr ""
 
-#: anv_list.lua:1017 anv_list.lua:1402 anv_pages.lua:291 anv_pages.lua:795
-#: anv_pages.lua:1606 anv_pages.lua:2435 main.lua:851 main.lua:1010
+#: anv_list.lua:1017 anv_list.lua:1402 anv_pages.lua:303 anv_pages.lua:807
+#: anv_pages.lua:1618 anv_pages.lua:2447 main.lua:849 main.lua:1008
 msgid "Cancel"
 msgstr ""
 
-#: anv_list.lua:1018 anv_list.lua:1403 anv_pages.lua:2335 anv_pages.lua:2436
+#: anv_list.lua:1018 anv_list.lua:1403 anv_pages.lua:2347 anv_pages.lua:2448
 msgid "Clear"
 msgstr ""
 
-#: anv_list.lua:1019 anv_list.lua:1413 anv_pages.lua:2437
+#: anv_list.lua:1019 anv_list.lua:1413 anv_pages.lua:2449
 msgid "Search"
 msgstr ""
 
@@ -340,7 +339,7 @@ msgstr ""
 msgid "Unknown"
 msgstr ""
 
-#: anv_list.lua:1858 anv_pages.lua:850 anv_pages.lua:1388 anv_pages.lua:1984
+#: anv_list.lua:1858 anv_pages.lua:862 anv_pages.lua:1400 anv_pages.lua:1996
 msgid "Books"
 msgstr ""
 
@@ -356,7 +355,7 @@ msgstr ""
 msgid "Search title or author"
 msgstr ""
 
-#: anv_list.lua:1885 anv_pages.lua:1390
+#: anv_list.lua:1885 anv_pages.lua:1402
 msgid "Authors"
 msgstr ""
 
@@ -372,7 +371,7 @@ msgstr ""
 msgid "Search authors"
 msgstr ""
 
-#: anv_list.lua:1886 anv_pages.lua:1390
+#: anv_list.lua:1886 anv_pages.lua:1402
 msgid "Series"
 msgstr ""
 
@@ -384,7 +383,7 @@ msgstr ""
 msgid "Hide these series"
 msgstr ""
 
-#: anv_list.lua:1887 anv_pages.lua:1390
+#: anv_list.lua:1887 anv_pages.lua:1402
 msgid "Language"
 msgstr ""
 
@@ -396,7 +395,7 @@ msgstr ""
 msgid "Hide these languages"
 msgstr ""
 
-#: anv_list.lua:1925 anv_pages.lua:1415
+#: anv_list.lua:1925 anv_pages.lua:1427
 msgid "Chapters"
 msgstr ""
 
@@ -416,925 +415,925 @@ msgstr ""
 msgid "Hide these tags"
 msgstr ""
 
-#: anv_pages.lua:631
+#: anv_pages.lua:643
 msgid "Show 1 bookmark"
 msgstr ""
 
-#: anv_pages.lua:631
+#: anv_pages.lua:643
 #, lua-format
 msgid "Show %d bookmarks"
 msgstr ""
 
-#: anv_pages.lua:633
+#: anv_pages.lua:645
 msgid "Show 1 annotation"
 msgstr ""
 
-#: anv_pages.lua:633
+#: anv_pages.lua:645
 #, lua-format
 msgid "Show %d annotations"
 msgstr ""
 
-#: anv_pages.lua:743
+#: anv_pages.lua:755
 msgid "Loading annotations…"
 msgstr ""
 
-#: anv_pages.lua:745
+#: anv_pages.lua:757
 msgid "Reading your books. Only the first time after starting KOReader."
 msgstr ""
 
-#: anv_pages.lua:760
+#: anv_pages.lua:772
 msgid "Delete this highlight?"
 msgstr ""
 
-#: anv_pages.lua:760
+#: anv_pages.lua:772
 msgid "Delete this annotation?"
 msgstr ""
 
-#: anv_pages.lua:761
+#: anv_pages.lua:773
 msgid "Delete this bookmark?"
 msgstr ""
 
-#: anv_pages.lua:789
+#: anv_pages.lua:801
 msgid "Your note on it is deleted too. This can’t be undone."
 msgstr ""
 
-#: anv_pages.lua:789
+#: anv_pages.lua:801
 msgid "This can’t be undone."
 msgstr ""
 
-#: anv_pages.lua:797 anv_pages.lua:1570 anv_sheet.lua:487
+#: anv_pages.lua:809 anv_pages.lua:1582 anv_sheet.lua:478
 msgid "Delete"
 msgstr ""
 
-#: anv_pages.lua:819
+#: anv_pages.lua:831
 msgid "Copied 1 bookmark"
 msgstr ""
 
-#: anv_pages.lua:819
+#: anv_pages.lua:831
 #, lua-format
 msgid "Copied %d bookmarks"
 msgstr ""
 
-#: anv_pages.lua:820
+#: anv_pages.lua:832
 msgid "Copied 1 annotation"
 msgstr ""
 
-#: anv_pages.lua:820
+#: anv_pages.lua:832
 #, lua-format
 msgid "Copied %d annotations"
 msgstr ""
 
-#: anv_pages.lua:822
+#: anv_pages.lua:834
 msgid "Exported 1 annotation"
 msgstr ""
 
-#: anv_pages.lua:822
+#: anv_pages.lua:834
 #, lua-format
 msgid "Exported %d annotations"
 msgstr ""
 
-#: anv_pages.lua:824
+#: anv_pages.lua:836
 msgid "Exported 1 bookmark"
 msgstr ""
 
-#: anv_pages.lua:824
+#: anv_pages.lua:836
 #, lua-format
 msgid "Exported %d bookmarks"
 msgstr ""
 
-#: anv_pages.lua:828
+#: anv_pages.lua:840
 msgid "to the clipboard"
 msgstr ""
 
-#: anv_pages.lua:829
+#: anv_pages.lua:841
 #, lua-format
 msgid "%d files in %s"
 msgstr ""
 
-#: anv_pages.lua:851
+#: anv_pages.lua:863
 msgid "Filtered"
 msgstr ""
 
-#: anv_pages.lua:851
+#: anv_pages.lua:863
 #, lua-format
 msgid "All %d"
 msgstr ""
 
-#: anv_pages.lua:855 anv_pages.lua:2035 anv_pages.lua:2048
+#: anv_pages.lua:867 anv_pages.lua:2047 anv_pages.lua:2060
 msgid "Export"
 msgstr ""
 
-#: anv_pages.lua:856
+#: anv_pages.lua:868
 #, lua-format
 msgid "%d shown"
 msgstr ""
 
-#: anv_pages.lua:857
+#: anv_pages.lua:869
 msgid "Reload annotations"
 msgstr ""
 
-#: anv_pages.lua:860 anv_pages.lua:2081
+#: anv_pages.lua:872 anv_pages.lua:2093
 msgid "Settings"
 msgstr ""
 
-#: anv_pages.lua:984 anv_pages.lua:1184 anv_pages.lua:1520
+#: anv_pages.lua:996 anv_pages.lua:1196 anv_pages.lua:1532
 msgid "Sort by"
 msgstr ""
 
-#: anv_pages.lua:984 anv_pages.lua:1184
+#: anv_pages.lua:996 anv_pages.lua:1196
 msgid "Then by"
 msgstr ""
 
-#: anv_pages.lua:984 anv_pages.lua:1184
+#: anv_pages.lua:996 anv_pages.lua:1196
 msgid "And then by"
 msgstr ""
 
-#: anv_pages.lua:1023 anv_sort.lua:380
+#: anv_pages.lua:1035 anv_sort.lua:380
 msgid "Newest"
 msgstr ""
 
-#: anv_pages.lua:1023 anv_sort.lua:380
+#: anv_pages.lua:1035 anv_sort.lua:380
 msgid "Oldest"
 msgstr ""
 
-#: anv_pages.lua:1023
+#: anv_pages.lua:1035
 msgid "Book A–Z"
 msgstr ""
 
-#: anv_pages.lua:1024
+#: anv_pages.lua:1036
 msgid "Author A–Z"
 msgstr ""
 
-#: anv_pages.lua:1024 anv_sort.lua:368
+#: anv_pages.lua:1036 anv_sort.lua:368
 msgid "Last opened book"
 msgstr ""
 
-#: anv_pages.lua:1025
+#: anv_pages.lua:1037
 msgid "In book order"
 msgstr ""
 
-#: anv_pages.lua:1067 anv_pages.lua:1176 anv_pages.lua:1182 anv_pages.lua:2508
+#: anv_pages.lua:1079 anv_pages.lua:1188 anv_pages.lua:1194 anv_pages.lua:2520
 msgid "Quick picks"
 msgstr ""
 
-#: anv_pages.lua:1231
+#: anv_pages.lua:1243
 msgid "No annotations yet"
 msgstr ""
 
-#: anv_pages.lua:1233
+#: anv_pages.lua:1245
 msgid "Highlight a passage in this book and it shows up here."
 msgstr ""
 
-#: anv_pages.lua:1234
+#: anv_pages.lua:1246
 msgid "Highlight a passage in any book and it shows up here."
 msgstr ""
 
-#: anv_pages.lua:1239
+#: anv_pages.lua:1251
 msgid "Nothing matches"
 msgstr ""
 
-#: anv_pages.lua:1239
+#: anv_pages.lua:1251
 msgid "Nothing here"
 msgstr ""
 
-#: anv_pages.lua:1244
+#: anv_pages.lua:1256
 msgid "No bookmarks in this view."
 msgstr ""
 
-#: anv_pages.lua:1244
+#: anv_pages.lua:1256
 msgid "No annotations in this view."
 msgstr ""
 
-#: anv_pages.lua:1246
+#: anv_pages.lua:1258
 msgid "No bookmarks fit these filters."
 msgstr ""
 
-#: anv_pages.lua:1246
+#: anv_pages.lua:1258
 msgid "No annotations fit these filters."
 msgstr ""
 
-#: anv_pages.lua:1247
+#: anv_pages.lua:1259
 msgid "1 is hidden."
 msgstr ""
 
-#: anv_pages.lua:1247
+#: anv_pages.lua:1259
 #, lua-format
 msgid "%d are hidden."
 msgstr ""
 
-#: anv_pages.lua:1252
+#: anv_pages.lua:1264
 msgid "Clear filters"
 msgstr ""
 
-#: anv_pages.lua:1358
+#: anv_pages.lua:1370
 msgid "Any"
 msgstr ""
 
-#: anv_pages.lua:1360
+#: anv_pages.lua:1372
 #, lua-format
 msgid "%d chosen"
 msgstr ""
 
-#: anv_pages.lua:1361
+#: anv_pages.lua:1373
 #, lua-format
 msgid "%d hidden"
 msgstr ""
 
-#: anv_pages.lua:1383 anv_pages.lua:2042
+#: anv_pages.lua:1395 anv_pages.lua:2054
 msgid "FILTER"
 msgstr ""
 
-#: anv_pages.lua:1474
+#: anv_pages.lua:1486
 msgid "Show only these instead"
 msgstr ""
 
-#: anv_pages.lua:1474
+#: anv_pages.lua:1486
 msgid "Hide these instead"
 msgstr ""
 
-#: anv_pages.lua:1480
+#: anv_pages.lua:1492
 msgid "Hide colour & style"
 msgstr ""
 
-#: anv_pages.lua:1480
+#: anv_pages.lua:1492
 msgid "Colour & style"
 msgstr ""
 
-#: anv_pages.lua:1493
+#: anv_pages.lua:1505
 msgid "Search highlights and notes"
 msgstr ""
 
-#: anv_pages.lua:1505
+#: anv_pages.lua:1517
 msgid "More text filters"
 msgstr ""
 
-#: anv_pages.lua:1508
+#: anv_pages.lua:1520
 msgid "Text contains"
 msgstr ""
 
-#: anv_pages.lua:1517
+#: anv_pages.lua:1529
 msgid "SORT"
 msgstr ""
 
-#: anv_pages.lua:1525
+#: anv_pages.lua:1537
 msgid "SAVED FILTERS"
 msgstr ""
 
-#: anv_pages.lua:1569
+#: anv_pages.lua:1581
 #, lua-format
 msgid "Delete the saved filter “%s”?"
 msgstr ""
 
-#: anv_pages.lua:1579
+#: anv_pages.lua:1591
 msgid "Nothing saved yet."
 msgstr ""
 
-#: anv_pages.lua:1583
+#: anv_pages.lua:1595
 msgid "Hold one to delete it."
 msgstr ""
 
-#: anv_pages.lua:1586
+#: anv_pages.lua:1598
 msgid "Save current filters…"
 msgstr ""
 
-#: anv_pages.lua:1594
+#: anv_pages.lua:1606
 #, lua-format
 msgid "Filter %d"
 msgstr ""
 
-#: anv_pages.lua:1603
+#: anv_pages.lua:1615
 msgid "Save filters"
 msgstr ""
 
-#: anv_pages.lua:1603
+#: anv_pages.lua:1615
 msgid "Name"
 msgstr ""
 
-#: anv_pages.lua:1604
+#: anv_pages.lua:1616
 msgid ""
 "Saves the filters and the sort orders (annotations and bookmarks) as they "
 "are now."
 msgstr ""
 
-#: anv_pages.lua:1607 main.lua:1014
+#: anv_pages.lua:1619 main.lua:1012
 msgid "Save"
 msgstr ""
 
-#: anv_pages.lua:1614
+#: anv_pages.lua:1626
 msgid "Filter & sort"
 msgstr ""
 
-#: anv_pages.lua:1615
+#: anv_pages.lua:1627
 msgid "Reset all"
 msgstr ""
 
-#: anv_pages.lua:1650
+#: anv_pages.lua:1662
 msgid "Text filters"
 msgstr ""
 
-#: anv_pages.lua:1652
+#: anv_pages.lua:1664
 msgid "Highlight contains"
 msgstr ""
 
-#: anv_pages.lua:1652
+#: anv_pages.lua:1664
 msgid "Filter by Highlight Text"
 msgstr ""
 
-#: anv_pages.lua:1652 anv_pages.lua:1653
+#: anv_pages.lua:1664 anv_pages.lua:1665
 msgid "Words in highlighted text…"
 msgstr ""
 
-#: anv_pages.lua:1653
+#: anv_pages.lua:1665
 msgid "Highlight doesn't contain"
 msgstr ""
 
-#: anv_pages.lua:1653
+#: anv_pages.lua:1665
 msgid "Exclude by Highlight Text"
 msgstr ""
 
-#: anv_pages.lua:1654
+#: anv_pages.lua:1666
 msgid "Note contains"
 msgstr ""
 
-#: anv_pages.lua:1654
+#: anv_pages.lua:1666
 msgid "Filter by Note Text"
 msgstr ""
 
-#: anv_pages.lua:1654 anv_pages.lua:1655
+#: anv_pages.lua:1666 anv_pages.lua:1667
 msgid "Words in your notes…"
 msgstr ""
 
-#: anv_pages.lua:1655
+#: anv_pages.lua:1667
 msgid "Note doesn't contain"
 msgstr ""
 
-#: anv_pages.lua:1655
+#: anv_pages.lua:1667
 msgid "Exclude by Note Text"
 msgstr ""
 
-#: anv_pages.lua:1656
+#: anv_pages.lua:1668
 msgid "Close"
 msgstr ""
 
-#: anv_pages.lua:1802 anv_pages.lua:1903 anv_pages.lua:1956 anv_pages.lua:2013
+#: anv_pages.lua:1814 anv_pages.lua:1915 anv_pages.lua:1968 anv_pages.lua:2025
 #: anv_sort.lua:368
 msgid "Date"
 msgstr ""
 
-#: anv_pages.lua:1802 anv_pages.lua:1953 anv_pages.lua:2013 anv_sort.lua:360
+#: anv_pages.lua:1814 anv_pages.lua:1965 anv_pages.lua:2025 anv_sort.lua:360
 #: anv_sort.lua:368
 msgid "Author"
 msgstr ""
 
-#: anv_pages.lua:1839
+#: anv_pages.lua:1851
 msgid "FONTS"
 msgstr ""
 
-#: anv_pages.lua:1840
+#: anv_pages.lua:1852
 msgid "Title font"
 msgstr ""
 
-#: anv_pages.lua:1841
+#: anv_pages.lua:1853
 msgid "Info font"
 msgstr ""
 
-#: anv_pages.lua:1842 anv_pages.lua:1844
+#: anv_pages.lua:1854 anv_pages.lua:1856
 msgid "Author font"
 msgstr ""
 
-#: anv_pages.lua:1843 anv_pages.lua:1897
+#: anv_pages.lua:1855 anv_pages.lua:1909
 msgid "Same as info"
 msgstr ""
 
-#: anv_pages.lua:1846
+#: anv_pages.lua:1858
 msgid "Content font"
 msgstr ""
 
-#: anv_pages.lua:1847 anv_pages.lua:1849
+#: anv_pages.lua:1859 anv_pages.lua:1861
 msgid "Note font"
 msgstr ""
 
-#: anv_pages.lua:1848
+#: anv_pages.lua:1860
 msgid "Same as content"
 msgstr ""
 
-#: anv_pages.lua:1851
+#: anv_pages.lua:1863
 msgid "SIZES"
 msgstr ""
 
-#: anv_pages.lua:1854
+#: anv_pages.lua:1866
 msgid "Author size"
 msgstr ""
 
-#: anv_pages.lua:1854 anv_pages.lua:1901
+#: anv_pages.lua:1866 anv_pages.lua:1913
 msgid "Same as the info size until you change it"
 msgstr ""
 
-#: anv_pages.lua:1857
+#: anv_pages.lua:1869
 msgid "Note size"
 msgstr ""
 
-#: anv_pages.lua:1857
+#: anv_pages.lua:1869
 msgid "Same as the content size until you change it"
 msgstr ""
 
-#: anv_pages.lua:1859
+#: anv_pages.lua:1871
 msgid "Lines per highlight"
 msgstr ""
 
-#: anv_pages.lua:1859
+#: anv_pages.lua:1871
 msgid "Longer ones end with “…”; tap to read all"
 msgstr ""
 
-#: anv_pages.lua:1860
+#: anv_pages.lua:1872
 msgid "Lines per note"
 msgstr ""
 
-#: anv_pages.lua:1860
+#: anv_pages.lua:1872
 msgid "Longer notes end with “…”; tap to read all"
 msgstr ""
 
-#: anv_pages.lua:1861
+#: anv_pages.lua:1873
 msgid "Justify text"
 msgstr ""
 
-#: anv_pages.lua:1862 anv_pages.lua:1863 anv_pages.lua:1868
+#: anv_pages.lua:1874 anv_pages.lua:1875 anv_pages.lua:1880
 msgid "CAPITALS"
 msgstr ""
 
-#: anv_pages.lua:1863 anv_pages.lua:1868
+#: anv_pages.lua:1875 anv_pages.lua:1880
 msgid "As written"
 msgstr ""
 
-#: anv_pages.lua:1864
+#: anv_pages.lua:1876
 msgid "Book and chapter titles"
 msgstr ""
 
-#: anv_pages.lua:1866
+#: anv_pages.lua:1878
 msgid "Chapter · date line"
 msgstr ""
 
-#: anv_pages.lua:1868
+#: anv_pages.lua:1880
 msgid "Author name"
 msgstr ""
 
-#: anv_pages.lua:1883
+#: anv_pages.lua:1895
 msgid "PAGE"
 msgstr ""
 
-#: anv_pages.lua:1885
+#: anv_pages.lua:1897
 msgid "BETWEEN ANNOTATIONS"
 msgstr ""
 
-#: anv_pages.lua:1887
+#: anv_pages.lua:1899
 msgid "BOOK HEADING"
 msgstr ""
 
-#: anv_pages.lua:1889
+#: anv_pages.lua:1901
 msgid "HIGHLIGHT TEXT"
 msgstr ""
 
-#: anv_pages.lua:1891 anv_sheet.lua:364
+#: anv_pages.lua:1903 anv_sheet.lua:355
 msgid "YOUR NOTE"
 msgstr ""
 
-#: anv_pages.lua:1895
+#: anv_pages.lua:1907
 msgid "BOOKMARK LINE"
 msgstr ""
 
-#: anv_pages.lua:1896
+#: anv_pages.lua:1908
 msgid "Font"
 msgstr ""
 
-#: anv_pages.lua:1898
+#: anv_pages.lua:1910
 msgid "Bookmark font"
 msgstr ""
 
-#: anv_pages.lua:1901
+#: anv_pages.lua:1913
 msgid "Text size"
 msgstr ""
 
-#: anv_pages.lua:1903 anv_pages.lua:1920
+#: anv_pages.lua:1915 anv_pages.lua:1932
 msgid "When sorted by date"
 msgstr ""
 
-#: anv_pages.lua:1903 anv_pages.lua:1920 anv_pages.lua:1928 anv_pages.lua:1930
+#: anv_pages.lua:1915 anv_pages.lua:1932 anv_pages.lua:1940 anv_pages.lua:1942
 msgid "Always"
 msgstr ""
 
-#: anv_pages.lua:1903 anv_pages.lua:1930
+#: anv_pages.lua:1915 anv_pages.lua:1942
 msgid "Never"
 msgstr ""
 
-#: anv_pages.lua:1905
+#: anv_pages.lua:1917
 msgid "NOTE"
 msgstr ""
 
-#: anv_pages.lua:1906
+#: anv_pages.lua:1918
 msgid "Icon before the note"
 msgstr ""
 
-#: anv_pages.lua:1907
+#: anv_pages.lua:1919
 msgid "SPACING"
 msgstr ""
 
-#: anv_pages.lua:1908
+#: anv_pages.lua:1920
 msgid "Between bookmarks"
 msgstr ""
 
-#: anv_pages.lua:1913
+#: anv_pages.lua:1925
 msgid "DATE FORMAT"
 msgstr ""
 
-#: anv_pages.lua:1915
+#: anv_pages.lua:1927
 msgid "Month"
 msgstr ""
 
-#: anv_pages.lua:1919
+#: anv_pages.lua:1931
 msgid "ABOVE HIGHLIGHTS"
 msgstr ""
 
-#: anv_pages.lua:1920
+#: anv_pages.lua:1932
 msgid "Show the date"
 msgstr ""
 
-#: anv_pages.lua:1922
+#: anv_pages.lua:1934
 msgid "IN THE LIST"
 msgstr ""
 
-#: anv_pages.lua:1922
+#: anv_pages.lua:1934
 msgid "ON THE ANNOTATION SHEET"
 msgstr ""
 
-#: anv_pages.lua:1928
+#: anv_pages.lua:1940
 msgid "Year"
 msgstr ""
 
-#: anv_pages.lua:1928
+#: anv_pages.lua:1940
 msgid "When not this year"
 msgstr ""
 
-#: anv_pages.lua:1930
+#: anv_pages.lua:1942
 msgid "Time"
 msgstr ""
 
-#: anv_pages.lua:1930
+#: anv_pages.lua:1942
 msgid "Today and yesterday"
 msgstr ""
 
-#: anv_pages.lua:1934
+#: anv_pages.lua:1946
 msgid "INFO ROW"
 msgstr ""
 
-#: anv_pages.lua:1935
+#: anv_pages.lua:1947
 msgid "Show book / info row"
 msgstr ""
 
-#: anv_pages.lua:1936
+#: anv_pages.lua:1948
 msgid "Info row shows"
 msgstr ""
 
-#: anv_pages.lua:1937
+#: anv_pages.lua:1949
 msgid "Title on each page"
 msgstr ""
 
-#: anv_pages.lua:1938
+#: anv_pages.lua:1950
 msgid "Chapter headings in one book"
 msgstr ""
 
-#: anv_pages.lua:1938
+#: anv_pages.lua:1950
 msgid "Heading above each chapter when you open a single book"
 msgstr ""
 
-#: anv_pages.lua:1939
+#: anv_pages.lua:1951
 msgid "Chapter heading on each page"
 msgstr ""
 
-#: anv_pages.lua:1940
+#: anv_pages.lua:1952
 msgid "Chapter / date on each page"
 msgstr ""
 
-#: anv_pages.lua:1941
+#: anv_pages.lua:1953
 msgid "Hide duplicate book header"
 msgstr ""
 
-#: anv_pages.lua:1942
+#: anv_pages.lua:1954
 msgid "Hide duplicate info header"
 msgstr ""
 
-#: anv_pages.lua:1943
+#: anv_pages.lua:1955
 msgid "Duplicate check"
 msgstr ""
 
-#: anv_pages.lua:1943
+#: anv_pages.lua:1955
 msgid "Repeated info is hidden when these match"
 msgstr ""
 
-#: anv_pages.lua:1949
+#: anv_pages.lua:1961
 msgid "FORMAT"
 msgstr ""
 
-#: anv_pages.lua:1950
+#: anv_pages.lua:1962
 msgid "File type"
 msgstr ""
 
-#: anv_pages.lua:1951
+#: anv_pages.lua:1963
 msgid "INCLUDE"
 msgstr ""
 
-#: anv_pages.lua:1952
+#: anv_pages.lua:1964
 msgid "Title and filter at the top"
 msgstr ""
 
-#: anv_pages.lua:1953
+#: anv_pages.lua:1965
 msgid "After the book title"
 msgstr ""
 
-#: anv_pages.lua:1954
+#: anv_pages.lua:1966
 msgid "In the info line"
 msgstr ""
 
-#: anv_pages.lua:1954
+#: anv_pages.lua:1966
 msgid "As headings"
 msgstr ""
 
-#: anv_pages.lua:1954 anv_pages.lua:1956
+#: anv_pages.lua:1966 anv_pages.lua:1968
 msgid "Leave out"
 msgstr ""
 
-#: anv_pages.lua:1956
+#: anv_pages.lua:1968
 msgid "Date and time"
 msgstr ""
 
-#: anv_pages.lua:1960
+#: anv_pages.lua:1972
 msgid "Date format"
 msgstr ""
 
-#: anv_pages.lua:1966
+#: anv_pages.lua:1978
 msgid "Colour and style"
 msgstr ""
 
-#: anv_pages.lua:1979
+#: anv_pages.lua:1991
 msgid "Also include"
 msgstr ""
 
-#: anv_pages.lua:1983
+#: anv_pages.lua:1995
 msgid "ORDER"
 msgstr ""
 
-#: anv_pages.lua:1984
+#: anv_pages.lua:1996
 msgid "Each book once"
 msgstr ""
 
-#: anv_pages.lua:1984
+#: anv_pages.lua:1996
 msgid "As in the list"
 msgstr ""
 
-#: anv_pages.lua:1986 anv_sheet.lua:381
+#: anv_pages.lua:1998 anv_sheet.lua:372
 msgid "STYLE"
 msgstr ""
 
-#: anv_pages.lua:1987
+#: anv_pages.lua:1999
 msgid "Highlight"
 msgstr ""
 
-#: anv_pages.lua:1987 anv_pages.lua:1989
+#: anv_pages.lua:1999 anv_pages.lua:2001
 msgid "Quote"
 msgstr ""
 
-#: anv_pages.lua:1987 anv_pages.lua:1989
+#: anv_pages.lua:1999 anv_pages.lua:2001
 msgid "Italic"
 msgstr ""
 
-#: anv_pages.lua:1987
+#: anv_pages.lua:1999
 msgid "Plain"
 msgstr ""
 
-#: anv_pages.lua:1989
+#: anv_pages.lua:2001
 msgid "Bold label"
 msgstr ""
 
-#: anv_pages.lua:1992
+#: anv_pages.lua:2004
 msgid "FILES"
 msgstr ""
 
-#: anv_pages.lua:1993
+#: anv_pages.lua:2005
 msgid "Files"
 msgstr ""
 
-#: anv_pages.lua:1994
+#: anv_pages.lua:2006
 msgid "Date and time in the file name"
 msgstr ""
 
-#: anv_pages.lua:1994
+#: anv_pages.lua:2006
 msgid "Off: exporting again replaces the file"
 msgstr ""
 
-#: anv_pages.lua:1995
+#: anv_pages.lua:2007
 msgid "Folder"
 msgstr ""
 
-#: anv_pages.lua:2004
+#: anv_pages.lua:2016
 msgid "LIST"
 msgstr ""
 
-#: anv_pages.lua:2005 anv_pages.lua:2047
+#: anv_pages.lua:2017 anv_pages.lua:2059
 msgid "Text"
 msgstr ""
 
-#: anv_pages.lua:2005
+#: anv_pages.lua:2017
 msgid "Fonts, sizes, capitals"
 msgstr ""
 
-#: anv_pages.lua:2007 anv_pages.lua:2047
+#: anv_pages.lua:2019 anv_pages.lua:2059
 msgid "Spacing"
 msgstr ""
 
-#: anv_pages.lua:2007
+#: anv_pages.lua:2019
 msgid "Margins, lines, notes"
 msgstr ""
 
-#: anv_pages.lua:2016 anv_pages.lua:2047
+#: anv_pages.lua:2028 anv_pages.lua:2059
 msgid "Info row and repeats"
 msgstr ""
 
-#: anv_pages.lua:2016 anv_pages.lua:2031
+#: anv_pages.lua:2028 anv_pages.lua:2043
 msgid "Off"
 msgstr ""
 
-#: anv_pages.lua:2019 anv_pages.lua:2047
+#: anv_pages.lua:2031 anv_pages.lua:2059
 msgid "Dates"
 msgstr ""
 
-#: anv_pages.lua:2021
+#: anv_pages.lua:2033
 msgid "Line size, date, spacing"
 msgstr ""
 
-#: anv_pages.lua:2023
+#: anv_pages.lua:2035
 msgid "Counts on tabs"
 msgstr ""
 
-#: anv_pages.lua:2025
+#: anv_pages.lua:2037
 msgid "PAGES"
 msgstr ""
 
-#: anv_pages.lua:2026
+#: anv_pages.lua:2038
 msgid "Page controls"
 msgstr ""
 
-#: anv_pages.lua:2026
+#: anv_pages.lua:2038
 msgid "Prev / Next"
 msgstr ""
 
-#: anv_pages.lua:2026
+#: anv_pages.lua:2038
 msgid "Scrollbar"
 msgstr ""
 
-#: anv_pages.lua:2027
+#: anv_pages.lua:2039
 msgid "Scrollbar + buttons"
 msgstr ""
 
-#: anv_pages.lua:2029
+#: anv_pages.lua:2041
 msgid "Marks on the scrollbar"
 msgstr ""
 
-#: anv_pages.lua:2029
+#: anv_pages.lua:2041
 msgid "Where a new book, author, month or chapter starts, by sort order"
 msgstr ""
 
-#: anv_pages.lua:2030
+#: anv_pages.lua:2042
 msgid "Swipe to turn pages"
 msgstr ""
 
-#: anv_pages.lua:2030
+#: anv_pages.lua:2042
 msgid "Both"
 msgstr ""
 
-#: anv_pages.lua:2030
+#: anv_pages.lua:2042
 msgid "Horizontal"
 msgstr ""
 
-#: anv_pages.lua:2031
+#: anv_pages.lua:2043
 msgid "Vertical"
 msgstr ""
 
-#: anv_pages.lua:2034
+#: anv_pages.lua:2046
 msgid "EXPORT"
 msgstr ""
 
-#: anv_pages.lua:2038
+#: anv_pages.lua:2050
 msgid "KOREADER"
 msgstr ""
 
-#: anv_pages.lua:2039
+#: anv_pages.lua:2051
 msgid "KOReader's Bookmarks open here"
 msgstr ""
 
-#: anv_pages.lua:2039
+#: anv_pages.lua:2051
 msgid ""
 "Its menu entries, gestures and Bookmarks buttons open the Bookmarks tab here"
 msgstr ""
 
-#: anv_pages.lua:2043
+#: anv_pages.lua:2055
 msgid "Only offer used colours and styles"
 msgstr ""
 
-#: anv_pages.lua:2054
+#: anv_pages.lua:2066
 msgid "Reset"
 msgstr ""
 
-#: anv_pages.lua:2093
+#: anv_pages.lua:2105
 msgid "Nothing to export"
 msgstr ""
 
-#: anv_pages.lua:2093
+#: anv_pages.lua:2105
 msgid "Export 1 bookmark"
 msgstr ""
 
-#: anv_pages.lua:2093
+#: anv_pages.lua:2105
 #, lua-format
 msgid "Export %d bookmarks"
 msgstr ""
 
-#: anv_pages.lua:2094
+#: anv_pages.lua:2106
 msgid "Export 1 annotation"
 msgstr ""
 
-#: anv_pages.lua:2094
+#: anv_pages.lua:2106
 #, lua-format
 msgid "Export %d annotations"
 msgstr ""
 
-#: anv_pages.lua:2103
+#: anv_pages.lua:2115
 msgid "Copy"
 msgstr ""
 
-#: anv_pages.lua:2136 anv_pages.lua:2164
+#: anv_pages.lua:2148 anv_pages.lua:2176
 msgid "Default"
 msgstr ""
 
-#: anv_pages.lua:2149
+#: anv_pages.lua:2161
 msgid "The quick brown fox jumps over the lazy dog."
 msgstr ""
 
-#: anv_pages.lua:2340
+#: anv_pages.lua:2352
 #, lua-format
 msgid "%d of %d selected"
 msgstr ""
 
-#: anv_pages.lua:2412
+#: anv_pages.lua:2424
 msgid "Nothing found."
 msgstr ""
 
-#: anv_pages.lua:2414
+#: anv_pages.lua:2426
 msgid "No books"
 msgstr ""
 
-#: anv_pages.lua:2414
+#: anv_pages.lua:2426
 msgid "No chapters"
 msgstr ""
 
-#: anv_pages.lua:2414
+#: anv_pages.lua:2426
 msgid "No tags"
 msgstr ""
 
-#: anv_pages.lua:2526
+#: anv_pages.lua:2538
 msgid "Sort"
 msgstr ""
 
-#: anv_sheet.lua:301 anv_sheet.lua:345
+#: anv_sheet.lua:292 anv_sheet.lua:336
 msgid "Annotation"
 msgstr ""
 
-#: anv_sheet.lua:349
+#: anv_sheet.lua:340
 msgid "Tap the highlight to read all of it"
 msgstr ""
 
-#: anv_sheet.lua:357
+#: anv_sheet.lua:348
 msgid "Edit"
 msgstr ""
 
-#: anv_sheet.lua:357 main.lua:1019
+#: anv_sheet.lua:348 main.lua:1017
 msgid "Add note"
 msgstr ""
 
-#: anv_sheet.lua:373
+#: anv_sheet.lua:364
 msgid "No note yet."
 msgstr ""
 
-#: anv_sheet.lua:419
+#: anv_sheet.lua:410
 msgid "COLOUR"
 msgstr ""
 
-#: anv_sheet.lua:476
+#: anv_sheet.lua:467
 msgid "Go to highlight"
 msgstr ""
 
-#: anv_sheet.lua:478
+#: anv_sheet.lua:469
 msgid "Go to page"
 msgstr ""
 
-#: anv_sheet.lua:478
+#: anv_sheet.lua:469
 msgid "Go to bookmark"
 msgstr ""
 
@@ -1690,62 +1689,66 @@ msgstr ""
 msgid "Without notes"
 msgstr ""
 
-#: main.lua:162 main.lua:169 main.lua:347 main.lua:360
+#: main.lua:178 main.lua:185
 msgid "Annotations: Bookmarks"
 msgstr ""
 
-#: main.lua:820
+#: main.lua:357 main.lua:360 main.lua:367
+msgid "Annotations and Bookmarks"
+msgstr ""
+
+#: main.lua:818
 msgid "Select Color"
 msgstr ""
 
-#: main.lua:837
+#: main.lua:835
 msgid "Strikethrough"
 msgstr ""
 
-#: main.lua:852
+#: main.lua:850
 msgid "Select Style"
 msgstr ""
 
-#: main.lua:874
+#: main.lua:872
 msgid ""
 "This book still uses KOReader's old format. Open it once in KOReader, then "
 "try again."
 msgstr ""
 
-#: main.lua:906
+#: main.lua:904
 msgid ""
 "Could not save: this annotation was not found in the book's file. Tap Reload "
 "annotations and try again."
 msgstr ""
 
-#: main.lua:911
+#: main.lua:909
 msgid "Style updated."
 msgstr ""
 
-#: main.lua:914
+#: main.lua:912
 msgid "Color updated."
 msgstr ""
 
-#: main.lua:1008
+#: main.lua:1006
 msgid "Remove note"
 msgstr ""
 
-#: main.lua:1019
+#: main.lua:1017
 msgid "Edit note"
 msgstr ""
 
-#: main.lua:1022
+#: main.lua:1020
 msgid "Your note on this page"
 msgstr ""
 
-#: main.lua:1022
+#: main.lua:1020
 msgid "Your note on this passage"
 msgstr ""
 
-#: main.lua:1066
+#: main.lua:1064
 msgid "Note saved."
 msgstr ""
 
-#: main.lua:1074
+#: main.lua:1072
 msgid "Cannot find book path."
 msgstr ""
