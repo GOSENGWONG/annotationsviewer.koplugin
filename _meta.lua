@@ -1,4 +1,4 @@
-local _ = require("ano_i18n").gettext
+local _ = require("anv_i18n").gettext
 return {
     name = "annotationsviewer",
     fullname = _("Annotations Viewer"),

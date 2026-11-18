@@ -393,7 +393,7 @@ do
     local DS = T.DocSettings
     local orig_open = rawget(DS, "openSettingsFile")
     local lfsx = real["libs/libkoreader-lfs"]
-    local dir = os.tmpname(); os.remove(dir); os.execute("mkdir -p '" .. dir .. "/b.sdr' '" .. dir .. "/ds/b.sdr'")
+    local dir = os.tmpname(); os.remove(dir); os.execute('mkdir "' .. dir .. '\\b.sdr" "' .. dir .. '\\ds\\b.sdr" 2>NUL')
     local book = dir .. "/b.epub"
     local side = dir .. "/b.sdr/metadata.epub.lua"          -- "doc" location
     local dside = dir .. "/ds/b.sdr/metadata.epub.lua"      -- "dir" location
@@ -877,6 +877,7 @@ check("files: bookmarks file name", E.files({ { book_path = "/a", book_title = "
 -- writing
 local dir = os.tmpname()
 os.remove(dir)
+os.execute('mkdir "' .. dir .. '" 2>NUL') -- Windows; POSIX mkdir also accepts a single literal path
 T.setSetting("export_dir", dir)
 local lfs_ok, lfs = pcall(require, "lfs")
 if lfs_ok and type(lfs) == "table" and lfs.attributes then
@@ -1092,6 +1093,45 @@ do
     for i, it in ipairs(shown and shown.items or {}) do titles[i] = it.title end
     check("chapters: in book order", table.concat(titles, ",") == "One,Two,Three", table.concat(titles, ","))
     UI.show = saved_show
+end
+
+-- Regression: row helpers moved from anv_sheet into anv_atoms; RoundedBox must still find
+-- them at paint time (the split once left them as nil globals and crashed the notes list).
+do
+    local atoms = require("anv_atoms")
+    check("atoms row helpers exported and correct",
+        type(atoms.circleInset) == "function" and type(atoms.paintRow) == "function"
+        and atoms.circleInset(4, 4) == 0 and atoms.circleInset(4, 0) == 3)
+    local rows = {}
+    local bb = { paintRect = function(_, x, y, w, h) table.insert(rows, { x, y, w, h }) end }
+    local child = { getSize = function() return { w = 40, h = 8 } end, paintTo = function() end }
+    local box = setmetatable({ width = 40, fill = 1, radius = 3, border = 0,
+        pad_x = 0, pad_y = 0, [1] = child }, { __index = atoms.RoundedBox })
+    local ok, err = pcall(function() box:paintTo(bb, 5, 7) end)
+    check("RoundedBox:paintTo draws all rows without nil helper", ok and #rows == 8,
+        tostring(ok) .. " " .. tostring(err) .. " rows=" .. #rows)
+    local sheet = require("anv_sheet")
+    check("sheet forwards row helpers to atoms",
+        sheet.circleInset == atoms.circleInset and sheet.paintRow == atoms.paintRow)
+end
+
+-- Regression: split-moved cache state and forward-declared classes must not be nil globals.
+do
+    local function noNilGlobal(name, fn, symbol)
+        local ok, err = pcall(fn)
+        local clean = ok or not tostring(err):find("global '" .. symbol .. "'", 1, true)
+        check(name, clean, tostring(ok) .. " " .. tostring(err))
+    end
+    noNilGlobal("cache: loadBookAnnotations reaches cache state", function()
+        plugin:loadBookAnnotations("/probe/book.pdf", "probe-key", "/probe/book.sdr")
+    end, "_annotation_cache")
+    noNilGlobal("cache: getBookInfo reaches cache state", function()
+        plugin:getBookInfo("/probe/book.pdf", nil, "probe-key", "/probe/book.sdr")
+    end, "_book_info_cache")
+    local SS = T.NotesListWidget.SettingsScreen
+    noNilGlobal("settings: SS.build finds forward SubPage", function()
+        SS.build(setmetatable({ list = { active_filter = {} }, page = "text" }, { __index = SS }))
+    end, "SubPage")
 end
 
 print(string.format("%d passed, %d failed", passed, failed))
