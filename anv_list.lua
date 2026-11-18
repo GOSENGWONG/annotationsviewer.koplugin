@@ -907,8 +907,7 @@ function NotesListWidget:buildHeader()
         RightContainer:new{ dimen = bar_dimen, right },
     })
 
-    -- 2. tabs: All / Highlights (no note) / Notes / Bookmarks, plus the sort button. The
-    -- Bookmarks tab is only there when some book has bookmarks.
+    -- 2. tabs: All / Highlights (no note) / Notes / Bookmarks, plus the sort button.
     local counts = self.tab_counts or { all = 0, highlights = 0, notes = 0, bookmarks = 0 }
     local presence = self.active_filter and self.active_filter.notes_presence
     local show_counts = getShowTotalNotes()
@@ -921,10 +920,8 @@ function NotesListWidget:buildHeader()
         { key = nil,       label = _("All"),        n = counts.all },
         { key = "exclude", label = _("Highlights"), n = counts.highlights },
         { key = "only",    label = _("Notes"),      n = counts.notes },
+        { key = "bookmarks", label = _("Bookmarks"), n = counts.bookmarks or 0 },
     }
-    if (self.tab_totals and self.tab_totals.bookmarks or 0) > 0 or presence == "bookmarks" then
-        table.insert(tab_list, { key = "bookmarks", label = _("Bookmarks"), n = counts.bookmarks or 0 })
-    end
     for i, tab in ipairs(tab_list) do
         local active = (presence == tab.key)
         local text = tab.label .. (show_counts and ("  " .. tab.n) or "")
