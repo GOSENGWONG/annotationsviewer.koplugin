@@ -1,119 +1,16 @@
-local M = {}
-
+local WidgetContainer = require("ui/widget/container/widgetcontainer")
+local ReaderHighlight = require("apps/reader/modules/readerhighlight")
+local Event = require("ui/event")
+local UIManager = require("ui/uimanager")
+local InfoMessage = require("ui/widget/infomessage")
+local BlitBuffer = require("ffi/blitbuffer")
+local Screen = require("device").screen
+local logger = require("logger")
+local DocSettings = require("docsettings")
+local ReadHistory = require("readhistory")
+local lfs = require("libs/libkoreader-lfs")
 local core = require("anv_core")
-
-local WidgetContainer = core.WidgetContainer
-local ReaderHighlight = core.ReaderHighlight
-local FrameContainer = core.FrameContainer
-local VerticalGroup = core.VerticalGroup
-local VerticalSpan = core.VerticalSpan
-local Event = core.Event
-local HorizontalGroup = core.HorizontalGroup
-local HorizontalSpan = core.HorizontalSpan
-local LeftContainer = core.LeftContainer
-local TopContainer = core.TopContainer
-local BottomContainer = core.BottomContainer
-local OverlapGroup = core.OverlapGroup
-local CenterContainer = core.CenterContainer
-local TextBoxWidget = core.TextBoxWidget
-local TextWidget = core.TextWidget
-local InputContainer = core.InputContainer
-local GestureRange = core.GestureRange
-local UIManager = core.UIManager
-local InfoMessage = core.InfoMessage
-local TextViewer = core.TextViewer
-local SpinWidget = core.SpinWidget
-local IconButton = core.IconButton
-local IconWidget = core.IconWidget
-local LineWidget = core.LineWidget
-local RightContainer = core.RightContainer
-local BlitBuffer = core.BlitBuffer
-local Screen = core.Screen
-local Device = core.Device
-local Input = core.Input
-local logger = core.logger
-local FontList = core.FontList
-local DocSettings = core.DocSettings
-local ReadHistory = core.ReadHistory
-local G_reader_settings = core.G_reader_settings
-local lfs = core.lfs
-local Font = core.Font
-local Size = core.Size
-local Geom = core.Geom
-local _ = core._
-local BD = core.BD
-
-local DEFAULT_CONTENT_FONT_SIZE = core.DEFAULT_CONTENT_FONT_SIZE
-local DEFAULT_TITLE_FONT_SIZE = core.DEFAULT_TITLE_FONT_SIZE
-local DEFAULT_INFO_FONT_SIZE = core.DEFAULT_INFO_FONT_SIZE
-local DEFAULT_H_MARGIN = core.DEFAULT_H_MARGIN
-local DEFAULT_NOTE_SPACING = core.DEFAULT_NOTE_SPACING
-local DEFAULT_TEXT_MARGIN = core.DEFAULT_TEXT_MARGIN
-local DEFAULT_TRUNCATE_LINES = core.DEFAULT_TRUNCATE_LINES
-local DEFAULT_TITLE_MARGIN = core.DEFAULT_TITLE_MARGIN
-local DEFAULT_INFO_MARGIN = core.DEFAULT_INFO_MARGIN
-local DEFAULT_TOP_PADDING = core.DEFAULT_TOP_PADDING
-local getSetting = core.getSetting
-local setSetting = core.setSetting
-local flushSettings = core.flushSettings
-local getContentFontSize = core.getContentFontSize
-local getTitleFontSize = core.getTitleFontSize
-local getInfoFontSize = core.getInfoFontSize
-local getHMargin = core.getHMargin
-local getNoteSpacing = core.getNoteSpacing
-local getTextMargin = core.getTextMargin
-local getTruncateLines = core.getTruncateLines
-local getJustify = core.getJustify
-local getTitleMargin = core.getTitleMargin
-local getInfoMargin = core.getInfoMargin
-local getTitleFont = core.getTitleFont
-local getInfoFont = core.getInfoFont
-local getContentFont = core.getContentFont
-local getShowTotalNotes = core.getShowTotalNotes
-local getTopPadding = core.getTopPadding
-local getHideDupTitle = core.getHideDupTitle
-local getHideDupInfo = core.getHideDupInfo
-local getSwipeSetting = core.getSwipeSetting
-local getDedupInfoFields = core.getDedupInfoFields
-local getShowInfo = core.getShowInfo
-local getInfoFields = core.getInfoFields
-local getAlwaysShowFirstOnPage = core.getAlwaysShowFirstOnPage
-local getRepeatTitleOnPage = core.getRepeatTitleOnPage
-local getRepeatInfoOnPage = core.getRepeatInfoOnPage
-local getHeaderSkips = core.getHeaderSkips
-local getPaginationStyle = core.getPaginationStyle
-local getScrollbarBookMarks = core.getScrollbarBookMarks
-local isScrollbarStyle = core.isScrollbarStyle
-local getNoteInfoKey = core.getNoteInfoKey
-local BOOK_GAP = core.BOOK_GAP
-local SB_THUMB_WIDTH = core.SB_THUMB_WIDTH
-local SB_TRACK_WIDTH = core.SB_TRACK_WIDTH
-local SB_STRIP_WIDTH = core.SB_STRIP_WIDTH
-local SB_MARGIN_RIGHT = core.SB_MARGIN_RIGHT
-local SB_MARGIN_V_TOP = core.SB_MARGIN_V_TOP
-local SB_MARGIN_V_BOTTOM = core.SB_MARGIN_V_BOTTOM
-local SB_MARK_OVERHANG = core.SB_MARK_OVERHANG
-local SB_MARK_HEIGHT = core.SB_MARK_HEIGHT
-local TOPBAR_HEIGHT = core.TOPBAR_HEIGHT
-local TOPBAR_BOOK_HEIGHT = core.TOPBAR_BOOK_HEIGHT
-local TABS_HEIGHT = core.TABS_HEIGHT
-local FOOTER_BAR_HEIGHT = core.FOOTER_BAR_HEIGHT
-local HEADER_ICON_SIZE = core.HEADER_ICON_SIZE
-local HEADER_ICON_PAD = core.HEADER_ICON_PAD
-local SERIF_FONT = core.SERIF_FONT
-local PLUGIN_DIR = core.PLUGIN_DIR
-local pluginIcon = core.pluginIcon
-local getFaceOr = core.getFaceOr
-local COLORS = core.COLORS
-local HIGHLIGHT_COLORS = core.HIGHLIGHT_COLORS
-local SPIN_MENUS = core.SPIN_MENUS
-local HIGHLIGHT_STYLES = core.HIGHLIGHT_STYLES
-local getHighlightColor = core.getHighlightColor
-local colorName = core.colorName
-local isNoBackgroundStyle = core.isNoBackgroundStyle
-local truncateAuthorDisplay = core.truncateAuthorDisplay
-local NoteWrapper = core.NoteWrapper
-
+local _ = require("anv_i18n").gettext
 local sort = require("anv_sort")
 local text = require("anv_text")
 local exportmod = require("anv_export")
@@ -122,44 +19,8 @@ local item = require("anv_item")
 local sheet = require("anv_sheet")
 local pages = require("anv_pages")
 local list = require("anv_list")
-local SortState = sort.SortState
-local SORT_COMPARATORS = sort.SORT_COMPARATORS
-local sortModeLabel = sort.sortModeLabel
-local compareByPosition = sort.compareByPosition
-local normalizeBookTitle = sort.normalizeBookTitle
-local wrapText = text.wrapText
-local filterToString = text.filterToString
-local trimParagraph = text.trimParagraph
-local Export = exportmod.Export
-local getSidecarKey = data.getSidecarKey
-local normalizeColorStyle = data.normalizeColorStyle
-local itemMatchesNote = data.itemMatchesNote
-local getBookInfoKey = data.getBookInfoKey
-local loadPersistentCache = data.loadPersistentCache
-local savePersistentCache = data.savePersistentCache
-local getLiveReader = data.getLiveReader
-local findLiveIndex = data.findLiveIndex
-local setLiveHighlightField = data.setLiveHighlightField
-local editStoredAnnotation = data.editStoredAnnotation
-local nowStamp = data.nowStamp
-local buildInfoText = item.buildInfoText
-local NoteItemWidget = item.NoteItemWidget
-local _annotation_cache = data._annotation_cache
-local _book_info_cache = data._book_info_cache
-local clearCaches = data.clearCaches
-local invalidateBook = data.invalidateBook
-local markPersistDirty = data.markPersistDirty
-local isPersistLoaded = data.isPersistLoaded
-local AnnotationSheet = sheet.AnnotationSheet
-local Page = pages.Page
-local States = pages.States
-local SS = pages.SS
-local SubPage = pages.SubPage
-local ListPicker = pages.ListPicker
-local NotesListWidget = list.NotesListWidget
 
 local AllNotesViewer = WidgetContainer:extend{ name = "allnotesviewer", is_doc_only = false }
-AllNotesViewer.is_doc_only = false
 function AllNotesViewer:init()
     AllNotesViewer.registerGestures()
     AllNotesViewer._current = self -- the open file browser's or book's plugin (used by the long-press button)
@@ -248,7 +109,7 @@ end
 function AllNotesViewer:bookHasAnnotations(path)
     local ReaderUI = require("apps/reader/readerui")
     local open = ReaderUI and ReaderUI.instance
-    if open and open.document and NotesListWidget.samePath(open.document.file, path)
+    if open and open.document and list.NotesListWidget.samePath(open.document.file, path)
             and open.annotation and open.annotation.annotations then
         return #open.annotation.annotations > 0
     end
@@ -264,7 +125,7 @@ end
 -- KOReader's functions get a wrapper that looks at the switch each time, so turning it off works
 -- straight away.
 function AllNotesViewer.takeOverOn()
-    local v = getSetting("take_over_bookmarks", false)
+    local v = core.getSetting("take_over_bookmarks", false)
     return v == true or v == "all" or v == "bookmarks" -- (test builds stored a tab name)
 end
 function AllNotesViewer:takeOverInBook()
@@ -321,12 +182,14 @@ end
 function AllNotesViewer:showBookFile(path, tab)
     local ReaderUI = require("apps/reader/readerui")
     local open = ReaderUI and ReaderUI.instance
-    if open and open.document and NotesListWidget.samePath(open.document.file, path) then
+    if open and open.document and list.NotesListWidget.samePath(open.document.file, path) then
         return self:showCurrentBookNotes(tab)
     end
+    -- Load annotations first: for a book with sidecar data it also fills the book-info cache,
+    -- so the getBookInfo below reuses the same file instead of opening the sidecar a second time.
+    local annotations = self:loadBookAnnotations(path) or {}
     local info = self:getBookInfo(path)
-    self:showNotesForBook(path, info and info.title or (path:match("([^/\\]+)$") or path),
-        self:loadBookAnnotations(path) or {}, tab)
+    self:showNotesForBook(path, info and info.title or (path:match("([^/\\]+)$") or path), annotations, tab)
 end
 -- tab: "bookmarks" opens the list on the Bookmarks tab; nil on All
 function AllNotesViewer:showCurrentBookNotes(tab)
@@ -371,15 +234,24 @@ function AllNotesViewer:addToMainMenu(menu_items)
     end
 end
 -- "Reload annotations" in the ☰ menu: forget everything read so far (memory and the file in the
--- cache folder), then open the list again, which reads all books afresh.
+-- cache folder), then open the list again, which reads all books afresh. The book path and tab are
+-- kept on the widget so a single-book list opened from the file browser can be rebuilt.
 function AllNotesViewer:reloadAnnotations(list)
-    clearCaches()
+    data.clearCaches()
     local single = list and list.single_book
+    local book_path = list and list.book_path
+    local tab = list and list.active_filter and list.active_filter.notes_presence
     if list then list:onClose() end
-    if single then self:showCurrentBookNotes() else self:showAllNotes() end
+    if single and book_path then
+        self:showBookFile(book_path, tab)
+    elseif single then
+        self:showCurrentBookNotes(tab)
+    else
+        self:showAllNotes(tab)
+    end
 end
 function AllNotesViewer:clearBookCache(book_path)
-    invalidateBook(book_path)
+    data.invalidateBook(book_path)
 end
 -- One item of KOReader's `annotations` list (sidecar or open book) as the plugin keeps it, or
 -- nil when there is nothing to show. Highlights and notes have a `drawer`; an item without one
@@ -518,7 +390,8 @@ function AllNotesViewer.legacyNotes(data)
             local text = type(hl.text) == "string" and hl.text or ""
             if not used[k] and hl.pos0 ~= nil and text ~= "" then
                 table.insert(out, {
-                    page = type(hl.pos0) == "table" and (tonumber(page) or page) or hl.pos0, page_label = tonumber(page), pos0 = withPage(hl.pos0, page), pos1 = withPage(hl.pos1, page),
+                    page = type(hl.pos0) == "table" and (tonumber(page) or page) or hl.pos0,
+                    page_label = tonumber(page), pos0 = withPage(hl.pos0, page), pos1 = withPage(hl.pos1, page),
                     chapter = hl.chapter or "", text = text, notes = "",
                     datetime = hl.datetime or "", drawer = hl.drawer, color = hl.color or "yellow",
                     tags = hl.tags, keywords = hl.keywords, legacy = true,
@@ -535,8 +408,20 @@ end
 -- findSidecarFile), read the book's settings the old way.
 function AllNotesViewer.readSidecar(sidecar, book_path)
     if sidecar == nil and type(book_path) == "string" then
-        local ok, ds = pcall(DocSettings.open, DocSettings, book_path)
-        return ok and ds and type(ds.data) == "table" and ds.data or nil
+        -- sidecar == nil means sidecarCandidates() was unavailable (old KOReader). Read the
+        -- likely places read-only instead of DocSettings:open, which deletes empty/broken files.
+        local paths = {
+            book_path .. ".lua",
+            (book_path:gsub("%.[^.]+$", "")) .. ".lua",
+        }
+        for _, path in ipairs(paths) do
+            local attr = lfs.attributes(path)
+            if attr and attr.mode == "file" and attr.size > 0 then
+                local ok, stored = pcall(dofile, path)
+                if ok and type(stored) == "table" and next(stored) ~= nil then return stored end
+            end
+        end
+        return nil
     end
     if type(sidecar) ~= "string" or sidecar == "" then return nil end
     local paths = { sidecar, sidecar .. ".old" }
@@ -553,7 +438,7 @@ function AllNotesViewer.readSidecar(sidecar, book_path)
     end
     -- that file doesn't load: the next one KOReader would read (it would delete this one)
     if type(book_path) == "string" then
-        local ok_c, list = pcall(NotesListWidget.sidecarCandidates, book_path)
+        local ok_c, list = pcall(list.NotesListWidget.sidecarCandidates, book_path)
         for i = 1, ok_c and #list or 0 do
             local path = list[i].path
             if path ~= sidecar and path ~= sidecar .. ".old" and list[i].size > 0 then
@@ -567,16 +452,16 @@ end
 function AllNotesViewer:loadBookAnnotations(book_path, key, sidecar)
     local annotations = {}
     if not book_path then return annotations end
-    if not key then key, sidecar = getSidecarKey(book_path) end
-    local cached = _annotation_cache[book_path]
+    if not key then key, sidecar = data.getSidecarKey(book_path) end
+    local cached = data._annotation_cache[book_path]
     if cached and cached.mtime == key then
         return cached.data
     end
-    markPersistDirty()
+    data.markPersistDirty()
     -- read only: DocSettings:open is for writing (it removes empty or broken sidecar files)
-    local data = AllNotesViewer.readSidecar(sidecar, book_path) or {}
+    local sidecar_data = AllNotesViewer.readSidecar(sidecar, book_path) or {}
     
-    local items = data.annotations
+    local items = sidecar_data.annotations
     -- an empty list is a converted book without annotations (KOReader keeps the old keys)
     if type(items) == "table" then
         for idx, item in ipairs(items) do
@@ -584,84 +469,89 @@ function AllNotesViewer:loadBookAnnotations(book_path, key, sidecar)
             if n then table.insert(annotations, n) end
         end
     else -- old format (book not opened since KOReader 2024): shown, but not editable
-        annotations = AllNotesViewer.legacyNotes(data)
+        annotations = AllNotesViewer.legacyNotes(sidecar_data)
     end
     table.sort(annotations, function(a, b) return (a.datetime or "") > (b.datetime or "") end)
-    _annotation_cache[book_path] = { data = annotations, mtime = key }
+    data._annotation_cache[book_path] = { data = annotations, mtime = key }
     -- Fill the book info cache from the same file, so getBookInfo() doesn't open it again
-    if #annotations > 0 then self:getBookInfo(book_path, data, key, sidecar) end
+    if #annotations > 0 then self:getBookInfo(book_path, sidecar_data, key, sidecar) end
     return annotations
 end
 -- data/key/sidecar are optional: pass data when the book's settings are already open, and
 -- key/sidecar when getSidecarKey() was already called for this book.
-function AllNotesViewer:getBookInfo(book_path, data, key, sidecar)
-    if not key then key, sidecar = getSidecarKey(book_path) end
-    local info_key = getBookInfoKey(key, sidecar)
-    local cached = _book_info_cache[book_path]
+function AllNotesViewer:getBookInfo(book_path, sidecar_data, key, sidecar)
+    if not key then key, sidecar = data.getSidecarKey(book_path) end
+    -- Resolve the real custom metadata path first: it may live in another folder from the sidecar,
+    -- and its stamp must be part of the cache key or edits there never refresh the book info.
+    local custom_metadata_file
+    if DocSettings.findCustomMetadataFile then
+        local ok_f, f = pcall(DocSettings.findCustomMetadataFile, DocSettings, book_path)
+        if ok_f then custom_metadata_file = f end
+    end
+    local info_key = data.getBookInfoKey(key, sidecar, custom_metadata_file)
+    local cached = data._book_info_cache[book_path]
     if cached and cached.mtime == info_key then
         return cached.data
     end
-    markPersistDirty()
-    data = data or AllNotesViewer.readSidecar(sidecar, book_path) or {}
+    data.markPersistDirty()
+    sidecar_data = sidecar_data or AllNotesViewer.readSidecar(sidecar, book_path) or {}
+    if type(sidecar_data) ~= "table" then sidecar_data = {} end
     local filename = book_path:match("([^/\\]+)$") or book_path
-    
+
     local custom_metadata = {}
-    do
-        local custom_metadata_file = DocSettings:findCustomMetadataFile(book_path)
-        if custom_metadata_file then
-            local ok_cm, cm_data = pcall(dofile, custom_metadata_file)
-            if ok_cm and cm_data then
-                custom_metadata = cm_data
-            end
-        end
+    if type(custom_metadata_file) == "string" then
+        local ok_cm, cm_data = pcall(dofile, custom_metadata_file)
+        -- a syntactically valid file may return a scalar; indexing it would abort the whole scan
+        if ok_cm and type(cm_data) == "table" then custom_metadata = cm_data end
     end
-    
-    local title = (custom_metadata.custom_props and custom_metadata.custom_props.title) or 
-                  (custom_metadata.doc_props and custom_metadata.doc_props.title) or
-                  (data.doc_props and data.doc_props.title)
-    local authors = (custom_metadata.custom_props and custom_metadata.custom_props.authors) or 
-                    (custom_metadata.doc_props and custom_metadata.doc_props.authors) or
-                    (data.doc_props and data.doc_props.authors)
-    local tags = (custom_metadata.custom_props and (custom_metadata.custom_props.tags or custom_metadata.custom_props.keywords)) or
-                 (custom_metadata.doc_props and (custom_metadata.doc_props.tags or custom_metadata.doc_props.keywords)) or
-                 (data.doc_props and (data.doc_props.tags or data.doc_props.keywords))
-    
+    local function props(t) return type(t) == "table" and t or nil end
+    local cm_custom, cm_doc = props(custom_metadata.custom_props), props(custom_metadata.doc_props)
+    local sd_doc = props(sidecar_data.doc_props)
+    local function textVal(v)
+        if type(v) == "number" then return tostring(v) end
+        return type(v) == "string" and v or nil
+    end
+
+    local title = textVal((cm_custom and cm_custom.title) or (cm_doc and cm_doc.title) or (sd_doc and sd_doc.title))
+    local authors = textVal((cm_custom and cm_custom.authors) or (cm_doc and cm_doc.authors) or (sd_doc and sd_doc.authors))
+    local tags = (cm_custom and (cm_custom.tags or cm_custom.keywords)) or
+                 (cm_doc and (cm_doc.tags or cm_doc.keywords)) or
+                 (sd_doc and (sd_doc.tags or sd_doc.keywords))
+
     -- series and language: the book's own metadata, as KOReader's book information shows it
     local function prop(name)
-        local v = (custom_metadata.custom_props and custom_metadata.custom_props[name])
-            or (custom_metadata.doc_props and custom_metadata.doc_props[name])
-            or (data.doc_props and data.doc_props[name])
+        local v = (cm_custom and cm_custom[name]) or (cm_doc and cm_doc[name]) or (sd_doc and sd_doc[name])
         if type(v) == "number" then v = tostring(v) end
         return type(v) == "string" and v ~= "" and v or nil
     end
     local series, language = prop("series"), prop("language")
 
     if not title or title == "" then title = filename:gsub("%.[^.]+$", "") end
-    
-    local info = { path = book_path, filename = filename, title = title or filename, authors = authors or "Unknown", tags = tags,
+
+    local info = { path = book_path, filename = filename, title = title, authors = authors or "Unknown", tags = tags,
         series = series, language = language }
-    _book_info_cache[book_path] = { data = info, mtime = info_key }
+    data._book_info_cache[book_path] = { data = info, mtime = info_key }
     return info
 end
 function AllNotesViewer:findAllNotes()
     local notes_data = {}
     local seen = {}  -- paths already tried
     local scanned = {} -- books with a sidecar, kept in the on-disk cache
-    loadPersistentCache()
-    NotesListWidget._realpaths = {} -- links may have changed since the last scan
+    data.loadPersistentCache()
+    list.NotesListWidget._realpaths = {} -- links may have changed since the last scan
 
     -- Helper: load annotations for a path and add to notes_data if any found
     local added = {} -- real paths of the books already listed
-    local function addBook(book_path)
+    local function addBookUnsafe(book_path)
         if seen[book_path] then return end
         seen[book_path] = true
         -- another spelling of a book already listed; one that found nothing doesn't count, as
         -- KOReader may keep the sidecar under the other spelling
-        local real = NotesListWidget.realPath(book_path)
+        local real = list.NotesListWidget.realPath(book_path)
         if added[real] then return end
         if not lfs.attributes(book_path, "mode") then return end
-        local live_ui = getLiveReader(book_path)
-        local key, sidecar = getSidecarKey(book_path)
+        local live_ui = data.getLiveReader(book_path)
+        local key, sidecar = data.getSidecarKey(book_path)
         -- Books without a sidecar have no annotations: skip opening their settings
         if sidecar == false and not live_ui then return end
         local annotations
@@ -682,6 +572,11 @@ function AllNotesViewer:findAllNotes()
                 tags = book_info.tags, notes = annotations,
             })
         end
+    end
+    -- one bad book must not abort the whole scan (broken sidecar, malformed metadata, ...)
+    local function addBook(book_path)
+        local ok, err = pcall(addBookUnsafe, book_path)
+        if not ok then logger.warn("AnnotationsViewer: skipped book", book_path, err) end
     end
 
     -- Source 1: cover browser book info databases (every book ever shown in the file browser).
@@ -722,7 +617,7 @@ function AllNotesViewer:findAllNotes()
         end
     end
 
-    savePersistentCache(scanned)
+    data.savePersistentCache(scanned)
     return notes_data
 end
 -- Tags from a book or an annotation: a list, or one string split at , ; | tab or newline.
@@ -740,7 +635,12 @@ end
 -- path }; book_tags: the book's tags as a list (used when the annotation has none of its own).
 function AllNotesViewer.listNote(note, book, book_tags)
     local tag_set, all_tags = {}, {}
-    for _, tag in ipairs(AllNotesViewer.splitTags(note.tags) or book_tags or {}) do
+    -- an annotation's own tags, falling back to its keywords, then to the book's tags. An empty
+    -- table/string counts as "no own tags" so the book's tags can still apply.
+    local own = AllNotesViewer.splitTags(note.tags)
+    if not own or #own == 0 then own = AllNotesViewer.splitTags(note.keywords) end
+    if not own or #own == 0 then own = book_tags end
+    for _, tag in ipairs(own or {}) do
         if tag ~= "" then tag_set[tag] = true end
     end
     for tag in pairs(tag_set) do table.insert(all_tags, tag) end
@@ -766,19 +666,27 @@ function AllNotesViewer:showNotesForBook(book_path, book_title, raw_annotations,
     for _, note in ipairs(raw_annotations) do
         table.insert(notes_list, AllNotesViewer.listNote(note, book, book_tags))
     end
-    SortState.bm_tab = nil -- a new list starts sorted for the annotation tabs (see syncSortTab)
-    NotesListWidget:sortNotesList(notes_list, SortState.get(true), true)
-    UIManager:show(NotesListWidget:new{ notes_list = notes_list, viewer = self, single_book = true, book_title = book_title,
-        active_filter = tab and { notes_presence = tab } or nil })
+    sort.SortState.bm_tab = nil -- a new list starts sorted for the annotation tabs (see syncSortTab)
+    list.NotesListWidget:sortNotesList(notes_list, sort.SortState.get(true), true)
+    UIManager:show(list.NotesListWidget:new{ notes_list = notes_list, viewer = self, single_book = true, book_path = book_path,
+        book_title = book_title, active_filter = tab and { notes_presence = tab } or nil })
 end
 -- tab: "bookmarks" opens on the Bookmarks tab
 function AllNotesViewer:showAllNotes(tab)
     -- The first open after starting KOReader may have to read many books: say so
     local loading
-    if not isPersistLoaded() then
-        loading = NotesListWidget.States.loading()
+    if not data.isPersistLoaded() then
+        loading = list.NotesListWidget.States.loading()
     end
-    local all_notes_by_book = self:findAllNotes()
+    local ok_scan, scan_result = pcall(self.findAllNotes, self)
+    if not ok_scan then
+        logger.warn("AnnotationsViewer: full scan failed:", scan_result)
+        if loading then UIManager:close(loading) end
+        list.NotesListWidget.showDialog(InfoMessage:new{ text = _("Could not read annotations."), timeout = 2 })
+        return
+    end
+    local all_notes_by_book = scan_result
+    if loading then UIManager:close(loading) end
     local notes_list = {}
     for _, book_data in ipairs(all_notes_by_book) do
         local book = { title = book_data.title, authors = book_data.authors, filename = book_data.filename, path = book_data.path,
@@ -788,25 +696,25 @@ function AllNotesViewer:showAllNotes(tab)
             table.insert(notes_list, AllNotesViewer.listNote(note, book, book_tags))
         end
     end
-    SortState.bm_tab = nil -- a new list starts sorted for the annotation tabs (see syncSortTab)
-    NotesListWidget:sortNotesList(notes_list, SortState.get(false), false)
-    local widget = NotesListWidget:new{ notes_list = notes_list, viewer = self, active_filter = tab and { notes_presence = tab } or nil }
+    sort.SortState.bm_tab = nil -- a new list starts sorted for the annotation tabs (see syncSortTab)
+    list.NotesListWidget:sortNotesList(notes_list, sort.SortState.get(false), false)
+    local widget = list.NotesListWidget:new{ notes_list = notes_list, viewer = self, active_filter = tab and { notes_presence = tab } or nil }
     if loading then UIManager:close(loading) end
     UIManager:show(widget)
 end
 -- Annotation sheet and Filter & sort screen (in a block to stay under Lua's 200-locals limit)
 function AllNotesViewer:showNoteDetails(note, parent_widget)
-    UIManager:show(AnnotationSheet:new{ note = note, viewer = self, parent_widget = parent_widget }, "ui")
+    UIManager:show(sheet.AnnotationSheet:new{ note = note, viewer = self, parent_widget = parent_widget }, "ui")
 end
 function AllNotesViewer:showColorPicker(note, parent_widget)
     local RadioButtonWidget = require("ui/widget/radiobuttonwidget")
         local colors = {}
         for _, v in ipairs(ReaderHighlight.highlight_colors) do
             if v[2] ~= "gray" then
-                table.insert(colors, { v[2], NoteItemWidget.colorLabel(v[2]), COLORS.highlightCode(v[2]) })
+                table.insert(colors, { v[2], item.NoteItemWidget.colorLabel(v[2]), core.COLORS.highlightCode(v[2]) })
             end
         end
-        table.insert(colors, { "gray", NoteItemWidget.colorLabel("gray"), BlitBuffer.COLOR_GRAY })
+        table.insert(colors, { "gray", item.NoteItemWidget.colorLabel("gray"), BlitBuffer.COLOR_GRAY })
     local radio_buttons = {}
     for _, c in ipairs(colors) do
                 table.insert(radio_buttons, {
@@ -814,7 +722,7 @@ function AllNotesViewer:showColorPicker(note, parent_widget)
                             bgcolor = c[1] == "gray" and BlitBuffer.COLOR_GRAY or BlitBuffer.colorFromString(c[3]), provider = c[1] },
                 })
     end
-    NotesListWidget.showDialog(RadioButtonWidget:new{
+    list.NotesListWidget.showDialog(RadioButtonWidget:new{
         title_text = _("Select Color"),
         width_factor = 0.6,
         radio_buttons = radio_buttons,
@@ -825,7 +733,6 @@ function AllNotesViewer:showColorPicker(note, parent_widget)
         dithered = true,
     })
 end
-
 
 function AllNotesViewer:showStylePicker(note, parent_widget)
     local ButtonDialog = require("ui/widget/buttondialog")
@@ -848,12 +755,12 @@ function AllNotesViewer:showStylePicker(note, parent_widget)
     end
     table.insert(buttons, { { text = _("Cancel"), callback = function() UIManager:close(dialog) end } })
     dialog = ButtonDialog:new{ title = _("Select Style"), buttons = buttons }
-    NotesListWidget.showDialog(dialog)
+    list.NotesListWidget.showDialog(dialog)
 end
 -- Updates the plugin's own list after a change and redraws it.
 local function updateListedNote(parent_widget, note, fn)
     for i, n in ipairs(parent_widget.notes_list) do
-        if n == note or (n.book_path == note.book_path and itemMatchesNote(
+        if n == note or (n.book_path == note.book_path and data.itemMatchesNote(
                 { datetime = n.datetime, text = n.highlighted_text, pos0 = n.pos0, pos1 = n.pos1,
                   page = n.page, drawer = n.drawer }, note)) then
             fn(n, i)
@@ -867,8 +774,8 @@ end
 -- the book once (it converts the file then). Says so and returns true. An open book is already
 -- converted in memory, so changes go through KOReader as usual.
 function AllNotesViewer.legacyBlocked(note)
-    if not note.legacy or (note.book_path and getLiveReader(note.book_path)) then return false end
-    NotesListWidget.showDialog(InfoMessage:new{
+    if not note.legacy or (note.book_path and data.getLiveReader(note.book_path)) then return false end
+    list.NotesListWidget.showDialog(InfoMessage:new{
         text = _("This book still uses KOReader's old format. Open it once in KOReader, then try again."),
     })
     return true
@@ -876,23 +783,23 @@ end
 function AllNotesViewer:setHighlightField(note, field, value, parent_widget, done_text)
     if not note.book_path or AllNotesViewer.legacyBlocked(note) then return end
     local updated = false
-    local ui = getLiveReader(note.book_path)
+    local ui = data.getLiveReader(note.book_path)
     if ui then
-        local index = findLiveIndex(ui, note)
+        local index = data.findLiveIndex(ui, note)
         if index then
-            setLiveHighlightField(ui, index, field, value)
+            data.setLiveHighlightField(ui, index, field, value)
             updated = true
         end
     else
-        updated = editStoredAnnotation(note, function(item)
+        updated = data.editStoredAnnotation(note, function(item)
             item[field] = value
-            item.datetime_updated = nowStamp()
+            item.datetime_updated = data.nowStamp()
         end)
     end
     if updated then
         self:clearBookCache(note.book_path)
         updateListedNote(parent_widget, note, function(n) n[field] = value end)
-        if done_text then NotesListWidget.showDialog(InfoMessage:new{ text = done_text, timeout = 1 }) end
+        if done_text then list.NotesListWidget.showDialog(InfoMessage:new{ text = done_text, timeout = 1 }) end
     else
         AllNotesViewer.saveFailed()
     end
@@ -900,7 +807,7 @@ end
 -- Nothing was changed because the annotation is no longer in the book's file (changed elsewhere,
 -- book moved ...): say so. on_dismiss runs when the message is closed.
 function AllNotesViewer.saveFailed(on_dismiss)
-    NotesListWidget.showDialog(InfoMessage:new{
+    list.NotesListWidget.showDialog(InfoMessage:new{
         text = _("Could not save: this annotation was not found in the book's file. Tap Reload annotations and try again."),
         dismiss_callback = on_dismiss,
     })
@@ -914,7 +821,7 @@ end
 -- before_delete: runs once Delete is tapped (closes the sheet the card was opened from)
 function AllNotesViewer:confirmDelete(note, parent_widget, before_delete)
     if AllNotesViewer.legacyBlocked(note) then return end
-    NotesListWidget.States.confirmDelete(note, function()
+    list.NotesListWidget.States.confirmDelete(note, function()
         if before_delete then before_delete() end
         self:deleteAnnotation(note, parent_widget)
     end)
@@ -922,9 +829,9 @@ end
 function AllNotesViewer:deleteAnnotation(note, parent_widget)
     if not note.book_path or AllNotesViewer.legacyBlocked(note) then return end
     local deleted = false
-    local ui = getLiveReader(note.book_path)
+    local ui = data.getLiveReader(note.book_path)
     if ui then
-        local index = findLiveIndex(ui, note)
+        local index = data.findLiveIndex(ui, note)
         if index and note.bookmark then
             local item = ui.annotation.annotations[index]
             if ui.bookmark and ui.bookmark.removeItem then
@@ -948,7 +855,7 @@ function AllNotesViewer:deleteAnnotation(note, parent_widget)
         end
     else
         local remaining
-        deleted = editStoredAnnotation(note, function(_, list, i)
+        deleted = data.editStoredAnnotation(note, function(_, list, i)
             table.remove(list, i)
             remaining = #list
         end)
@@ -968,12 +875,10 @@ function AllNotesViewer:deleteAnnotation(note, parent_widget)
     end
 end
 -- First lines of the highlight, for the edit-note dialog (about three lines' worth).
-local function cleanHighlightTextForDialog(text)
-    local t = trimParagraph(((text or ""):gsub("%s+", " ")))
+local function cleanHighlightTextForDialog(str)
+    local t = text.trimParagraph(((str or ""):gsub("%s+", " ")))
     if #t > 180 then
-        local cut = t:sub(1, 180):gsub("[\128-\191]+$", "")
-        -- do not leave half a UTF-8 character at the end
-        while #cut > 0 and cut:byte(#cut) >= 0xC0 do cut = cut:sub(1, -2) end
+        local cut = text.utf8Prefix(t, 180)
         t = cut:gsub("%s+%S*$", "") .. "…"
     end
     return t
@@ -987,7 +892,7 @@ function AllNotesViewer:editNote(note, parent_widget, on_done, start_text)
     -- what the note is about: "Book · Chapter · date", then the start of the highlight
     local about = {}
     if note.book_title and note.book_title ~= "" then table.insert(about, note.book_title) end
-    local info = buildInfoText(note, NoteWrapper:new(note))
+    local info = item.buildInfoText(note)
     if info ~= "" then table.insert(about, info) end
     local quote = cleanHighlightTextForDialog(note.highlighted_text)
     local description = table.concat(about, " · ")
@@ -1022,7 +927,7 @@ function AllNotesViewer:editNote(note, parent_widget, on_done, start_text)
         text_height = Screen:scaleBySize(120),
         buttons = { row },
     }
-    NotesListWidget.showDialog(input_dialog)
+    list.NotesListWidget.showDialog(input_dialog)
     input_dialog:onShowKeyboard()
 end
 -- on_fail: run after the "could not save" message is closed (editNote reopens with the text).
@@ -1030,9 +935,9 @@ function AllNotesViewer:saveNoteEdit(note, new_note_text, parent_widget, on_fail
     if not note.book_path or AllNotesViewer.legacyBlocked(note) then return end
     local value = new_note_text ~= "" and new_note_text or nil -- blank input deletes the note, as in KOReader
     local updated = false
-    local ui = getLiveReader(note.book_path)
+    local ui = data.getLiveReader(note.book_path)
     if ui then
-        local index = findLiveIndex(ui, note)
+        local index = data.findLiveIndex(ui, note)
         if index then
             -- same steps as ReaderBookmark:setBookmarkNote()
             local item = ui.annotation.annotations[index]
@@ -1053,15 +958,15 @@ function AllNotesViewer:saveNoteEdit(note, new_note_text, parent_widget, on_fail
             updated = true
         end
     else
-        updated = editStoredAnnotation(note, function(item)
+        updated = data.editStoredAnnotation(note, function(item)
             item.note = value
-            item.datetime_updated = nowStamp()
+            item.datetime_updated = data.nowStamp()
         end)
     end
     if updated then
         self:clearBookCache(note.book_path)
         updateListedNote(parent_widget, note, function(n) n.user_note = value end)
-        NotesListWidget.showDialog(InfoMessage:new{ text = _("Note saved."), timeout = 1 })
+        list.NotesListWidget.showDialog(InfoMessage:new{ text = _("Note saved."), timeout = 1 })
     else
         AllNotesViewer.saveFailed(on_fail)
     end
@@ -1069,7 +974,7 @@ end
 function AllNotesViewer:openBookAtNote(note)
     local book_path = note.book_path
     if not book_path then
-        NotesListWidget.showDialog(InfoMessage:new{ text = _("Cannot find book path.") })
+        list.NotesListWidget.showDialog(InfoMessage:new{ text = _("Cannot find book path.") })
         return
     end
 
@@ -1101,7 +1006,7 @@ function AllNotesViewer:openBookAtNote(note)
     end
 
     if ReaderUI.instance and ReaderUI.instance.document then
-        if NotesListWidget.samePath(ReaderUI.instance.document.file, book_path) then
+        if list.NotesListWidget.samePath(ReaderUI.instance.document.file, book_path) then
             gotoNote(ReaderUI.instance)
             return
         end
@@ -1119,53 +1024,24 @@ function AllNotesViewer:openBookAtNote(note)
     UIManager:scheduleIn(1.5, function()
         if done then return end
         local ui = require("apps/reader/readerui").instance
-        if ui and ui.document and NotesListWidget.samePath(ui.document.file, book_path) then after_open(ui) end
+        if ui and ui.document and list.NotesListWidget.samePath(ui.document.file, book_path) then after_open(ui) end
     end)
 end
--- Internals exposed for tests/run.lua; KOReader doesn't use this.
-
 -- Cross-module references that are nil while the modules load are filled in here,
 -- together with the assignments that used to run at load time.
-data.bind{ AllNotesViewer = AllNotesViewer, NotesListWidget = NotesListWidget }
-sheet.bind{ NotesListWidget = NotesListWidget }
-pages.bind{ NotesListWidget = NotesListWidget, AllNotesViewer = AllNotesViewer,
-            NoteItemWidget = NoteItemWidget }
+data.bind{ NotesListWidget = list.NotesListWidget }
+sheet.bind{ NotesListWidget = list.NotesListWidget }
+pages.bind{ NotesListWidget = list.NotesListWidget, AllNotesViewer = AllNotesViewer,
+            NoteItemWidget = item.NoteItemWidget }
 list.bind{ AllNotesViewer = AllNotesViewer }
-AllNotesViewer.samePath = NotesListWidget.samePath
-NotesListWidget.Export = Export
-NoteItemWidget.TextMark = Page.TextMark
-NotesListWidget.Page = Page
-NotesListWidget.States = States
-NotesListWidget.SettingsScreen = SS
-NotesListWidget.SubPage = SubPage
-NotesListWidget.ListPicker = ListPicker
-
-AllNotesViewer._test = {
-    wrapText = wrapText,
-    normalizeBookTitle = normalizeBookTitle,
-    SORT_COMPARATORS = SORT_COMPARATORS,
-    SortState = SortState,
-    filterToString = filterToString,
-    sortModeLabel = sortModeLabel,
-    compareByPosition = compareByPosition,
-    itemMatchesNote = itemMatchesNote,
-    legacyNotes = AllNotesViewer.legacyNotes,
-    samePath = AllNotesViewer.samePath,
-    getSidecarKey = getSidecarKey,
-    normalizeColorStyle = normalizeColorStyle,
-    ReaderHighlight = ReaderHighlight,
-    UIManager = UIManager,
-    COLORS = COLORS,
-    readSidecar = AllNotesViewer.readSidecar,
-    DocSettings = DocSettings,
-    notesToMarkdown = Export.notesToMarkdown,
-    Export = Export,
-    setSetting = setSetting,
-    getSetting = getSetting,
-    NotesListWidget = NotesListWidget,
-    NoteItemWidget = NoteItemWidget,
-    listNote = AllNotesViewer.listNote,
-    splitTags = AllNotesViewer.splitTags,
-}
+AllNotesViewer.samePath = list.NotesListWidget.samePath
+list.NotesListWidget.Export = exportmod
+item.NoteItemWidget.TextMark = pages.TextMark
+list.NotesListWidget.splitPages = pages.splitPages
+list.NotesListWidget.watchResize = pages.watchResize
+list.NotesListWidget.States = pages.States
+list.NotesListWidget.SettingsScreen = pages.SS
+list.NotesListWidget.SubPage = pages.SubPage
+list.NotesListWidget.ListPicker = pages.ListPicker
 
 return AllNotesViewer

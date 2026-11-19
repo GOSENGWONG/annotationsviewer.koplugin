@@ -1,138 +1,51 @@
-local M = {}
+-- anv_sheet.lua — Annotations Viewer
+--
+-- The annotation detail sheet. AnnotationSheet renders one note as a card,
+-- builds its decorated highlight text and handles rebuild, tap-outside and
+-- close. main.lua is its sole constructor.
+--
+-- Public API (used by other modules):
+--   AnnotationSheet    detail-sheet widget class
+--   cleanHighlightText    strip markup from highlight text
+--   buildHighlightLines    wrap decorated highlight text into lines
+--   decoratedText    compose a text widget with its decoration
+--   bind    inject the NotesListWidget collaborator
 
+local Sheet = {}
+
+local ReaderHighlight = require("apps/reader/modules/readerhighlight")
+local FrameContainer = require("ui/widget/container/framecontainer")
+local VerticalGroup = require("ui/widget/verticalgroup")
+local VerticalSpan = require("ui/widget/verticalspan")
+local HorizontalGroup = require("ui/widget/horizontalgroup")
+local HorizontalSpan = require("ui/widget/horizontalspan")
+local LeftContainer = require("ui/widget/container/leftcontainer")
+local BottomContainer = require("ui/widget/container/bottomcontainer")
+local OverlapGroup = require("ui/widget/overlapgroup")
+local CenterContainer = require("ui/widget/container/centercontainer")
+local TextBoxWidget = require("ui/widget/textboxwidget")
+local TextWidget = require("ui/widget/textwidget")
+local InputContainer = require("ui/widget/container/inputcontainer")
+local GestureRange = require("ui/gesturerange")
+local UIManager = require("ui/uimanager")
+local TextViewer = require("ui/widget/textviewer")
+local IconButton = require("ui/widget/iconbutton")
+local LineWidget = require("ui/widget/linewidget")
+local RightContainer = require("ui/widget/container/rightcontainer")
+local BlitBuffer = require("ffi/blitbuffer")
+local Screen = require("device").screen
+local Device = require("device")
+local Input = Device.input
+local lfs = require("libs/libkoreader-lfs")
+local Font = require("ui/font")
+local Size = require("ui/size")
+local Geom = require("ui/geometry")
 local core = require("anv_core")
-
-local WidgetContainer = core.WidgetContainer
-local ReaderHighlight = core.ReaderHighlight
-local FrameContainer = core.FrameContainer
-local VerticalGroup = core.VerticalGroup
-local VerticalSpan = core.VerticalSpan
-local Event = core.Event
-local HorizontalGroup = core.HorizontalGroup
-local HorizontalSpan = core.HorizontalSpan
-local LeftContainer = core.LeftContainer
-local TopContainer = core.TopContainer
-local BottomContainer = core.BottomContainer
-local OverlapGroup = core.OverlapGroup
-local CenterContainer = core.CenterContainer
-local TextBoxWidget = core.TextBoxWidget
-local TextWidget = core.TextWidget
-local InputContainer = core.InputContainer
-local GestureRange = core.GestureRange
-local UIManager = core.UIManager
-local InfoMessage = core.InfoMessage
-local TextViewer = core.TextViewer
-local SpinWidget = core.SpinWidget
-local IconButton = core.IconButton
-local IconWidget = core.IconWidget
-local LineWidget = core.LineWidget
-local RightContainer = core.RightContainer
-local BlitBuffer = core.BlitBuffer
-local Screen = core.Screen
-local Device = core.Device
-local Input = core.Input
-local logger = core.logger
-local FontList = core.FontList
-local DocSettings = core.DocSettings
-local ReadHistory = core.ReadHistory
-local G_reader_settings = core.G_reader_settings
-local lfs = core.lfs
-local Font = core.Font
-local Size = core.Size
-local Geom = core.Geom
-local _ = core._
-local BD = core.BD
-
-local DEFAULT_CONTENT_FONT_SIZE = core.DEFAULT_CONTENT_FONT_SIZE
-local DEFAULT_TITLE_FONT_SIZE = core.DEFAULT_TITLE_FONT_SIZE
-local DEFAULT_INFO_FONT_SIZE = core.DEFAULT_INFO_FONT_SIZE
-local DEFAULT_H_MARGIN = core.DEFAULT_H_MARGIN
-local DEFAULT_NOTE_SPACING = core.DEFAULT_NOTE_SPACING
-local DEFAULT_TEXT_MARGIN = core.DEFAULT_TEXT_MARGIN
-local DEFAULT_TRUNCATE_LINES = core.DEFAULT_TRUNCATE_LINES
-local DEFAULT_TITLE_MARGIN = core.DEFAULT_TITLE_MARGIN
-local DEFAULT_INFO_MARGIN = core.DEFAULT_INFO_MARGIN
-local DEFAULT_TOP_PADDING = core.DEFAULT_TOP_PADDING
-local getSetting = core.getSetting
-local setSetting = core.setSetting
-local flushSettings = core.flushSettings
-local getContentFontSize = core.getContentFontSize
-local getTitleFontSize = core.getTitleFontSize
-local getInfoFontSize = core.getInfoFontSize
-local getHMargin = core.getHMargin
-local getNoteSpacing = core.getNoteSpacing
-local getTextMargin = core.getTextMargin
-local getTruncateLines = core.getTruncateLines
-local getJustify = core.getJustify
-local getTitleMargin = core.getTitleMargin
-local getInfoMargin = core.getInfoMargin
-local getTitleFont = core.getTitleFont
-local getInfoFont = core.getInfoFont
-local getContentFont = core.getContentFont
-local getShowTotalNotes = core.getShowTotalNotes
-local getTopPadding = core.getTopPadding
-local getHideDupTitle = core.getHideDupTitle
-local getHideDupInfo = core.getHideDupInfo
-local getSwipeSetting = core.getSwipeSetting
-local getDedupInfoFields = core.getDedupInfoFields
-local getShowInfo = core.getShowInfo
-local getInfoFields = core.getInfoFields
-local getAlwaysShowFirstOnPage = core.getAlwaysShowFirstOnPage
-local getRepeatTitleOnPage = core.getRepeatTitleOnPage
-local getRepeatInfoOnPage = core.getRepeatInfoOnPage
-local getHeaderSkips = core.getHeaderSkips
-local getPaginationStyle = core.getPaginationStyle
-local getScrollbarBookMarks = core.getScrollbarBookMarks
-local isScrollbarStyle = core.isScrollbarStyle
-local getNoteInfoKey = core.getNoteInfoKey
-local BOOK_GAP = core.BOOK_GAP
-local SB_THUMB_WIDTH = core.SB_THUMB_WIDTH
-local SB_TRACK_WIDTH = core.SB_TRACK_WIDTH
-local SB_STRIP_WIDTH = core.SB_STRIP_WIDTH
-local SB_MARGIN_RIGHT = core.SB_MARGIN_RIGHT
-local SB_MARGIN_V_TOP = core.SB_MARGIN_V_TOP
-local SB_MARGIN_V_BOTTOM = core.SB_MARGIN_V_BOTTOM
-local SB_MARK_OVERHANG = core.SB_MARK_OVERHANG
-local SB_MARK_HEIGHT = core.SB_MARK_HEIGHT
-local TOPBAR_HEIGHT = core.TOPBAR_HEIGHT
-local TOPBAR_BOOK_HEIGHT = core.TOPBAR_BOOK_HEIGHT
-local TABS_HEIGHT = core.TABS_HEIGHT
-local FOOTER_BAR_HEIGHT = core.FOOTER_BAR_HEIGHT
-local HEADER_ICON_SIZE = core.HEADER_ICON_SIZE
-local HEADER_ICON_PAD = core.HEADER_ICON_PAD
-local SERIF_FONT = core.SERIF_FONT
-local PLUGIN_DIR = core.PLUGIN_DIR
-local pluginIcon = core.pluginIcon
-local getFaceOr = core.getFaceOr
-local COLORS = core.COLORS
-local HIGHLIGHT_COLORS = core.HIGHLIGHT_COLORS
-local SPIN_MENUS = core.SPIN_MENUS
-local HIGHLIGHT_STYLES = core.HIGHLIGHT_STYLES
-local getHighlightColor = core.getHighlightColor
-local colorName = core.colorName
-local isNoBackgroundStyle = core.isNoBackgroundStyle
-local truncateAuthorDisplay = core.truncateAuthorDisplay
-local NoteWrapper = core.NoteWrapper
-
-local sort = require("anv_sort")
+local _ = require("anv_i18n").gettext
 local text = require("anv_text")
 local atoms = require("anv_atoms")
 local item = require("anv_item")
-local SortState = sort.SortState
-local wrapText = text.wrapText
-local createJustifiedLine = text.createJustifiedLine
-local getLineHeight = text.getLineHeight
-local trimParagraph = text.trimParagraph
-local Pill = atoms.Pill
-local RoundedBox = atoms.RoundedBox
-local RoundedOutline = atoms.RoundedOutline
-local SheetFrame = atoms.SheetFrame
-local TapBox = atoms.TapBox
-local StrikeoutLineWidget = atoms.StrikeoutLineWidget
-local UnderlineWidget = atoms.UnderlineWidget
-local NoteItemWidget = item.NoteItemWidget
-local getNoteFaces = item.getNoteFaces
-local buildInfoText = item.buildInfoText
+
 local NotesListWidget -- injected by main assembly
 
 -- Annotation sheet: opens from the bottom when an annotation is tapped. Shows the whole
@@ -140,40 +53,40 @@ local NotesListWidget -- injected by main assembly
 -- Highlight text as the list draws it: one row per wrapped line, each in the highlight's
 -- colour (or underlined / struck through / inverted). Returns the widget and whether the
 -- text was cut to max_lines.
-local function cleanHighlightText(text)
+function Sheet.cleanHighlightText(str)
     local paras = {}
-    for p in ((text or ""):gsub("\r", "") .. "\n"):gmatch("([^\n]*)\n") do
-        p = trimParagraph(p)
+    for p in ((str or ""):gsub("\r", "") .. "\n"):gmatch("([^\n]*)\n") do
+        p = text.trimParagraph(p)
         if p ~= "" then table.insert(paras, p) end
     end
     return table.concat(paras, "\n")
 end
 -- in_box: the caller paints the colour behind all lines (rounded box), so lines get no
 -- background of their own, only the text colour and underline/strikeout.
-local function buildHighlightLines(text, face, width, drawer, color, max_lines, in_box)
+function Sheet.buildHighlightLines(str, face, width, drawer, color, max_lines, in_box)
     drawer = drawer or "lighten"
     local h_pad, v_pad = Size.padding.small, 1
     local line_width = width - h_pad * 2
     local fg, bg = BlitBuffer.COLOR_BLACK, BlitBuffer.COLOR_WHITE
     if drawer == "invert" then
         fg, bg = BlitBuffer.COLOR_WHITE, BlitBuffer.COLOR_BLACK
-    elseif not isNoBackgroundStyle(drawer) then
-        bg = getHighlightColor(color)
+    elseif not core.isNoBackgroundStyle(drawer) then
+        bg = core.getHighlightColor(color)
     end
-    local lines, para_end = wrapText(text, face, line_width)
+    local lines, para_end = text.wrapText(str, face, line_width)
     local cut = max_lines and #lines > max_lines
     if cut then
         local kept = {}
         for i = 1, max_lines do kept[i] = lines[i] end
-        kept[max_lines] = NoteItemWidget.cutLine(kept[max_lines], "…", face, line_width) .. "…"
+        kept[max_lines] = item.NoteItemWidget.cutLine(kept[max_lines], "…", face, line_width) .. "…"
         lines = kept
     end
-    local justify = getJustify() == true
+    local justify = core.getJustify() == true
     local group = VerticalGroup:new{ align = "left" }
     for i, line in ipairs(lines) do
         local w
-        if justify and i < #lines and not para_end[i] and not (cut and i == #lines) then
-            w = createJustifiedLine(line, face, line_width, fg)
+        if justify and i < #lines and not para_end[i] then
+            w = text.createJustifiedLine(line, face, line_width, fg)
         else
             w = TextWidget:new{ text = line, face = face, fgcolor = fg }
         end
@@ -182,9 +95,9 @@ local function buildHighlightLines(text, face, width, drawer, color, max_lines, 
         if drawer == "strikeout" or drawer == "underscore" then
             local items = { CenterContainer:new{ dimen = Geom:new{ w = total_w, h = total_h }, w } }
             if drawer == "strikeout" then
-                table.insert(items, StrikeoutLineWidget:new{ width = total_w, height = total_h, y_offset = math.floor(total_h / 2) })
+                table.insert(items, atoms.StrikeoutLineWidget:new{ width = total_w, height = total_h, y_offset = math.floor(total_h / 2) })
             else
-                table.insert(items, UnderlineWidget:new{ width = total_w, height = total_h })
+                table.insert(items, atoms.UnderlineWidget:new{ width = total_w, height = total_h })
             end
             table.insert(group, OverlapGroup:new{ dimen = Geom:new{ w = total_w, h = total_h }, unpack(items) })
         else
@@ -197,10 +110,10 @@ local function buildHighlightLines(text, face, width, drawer, color, max_lines, 
     return group, cut
 end
 
-local AnnotationSheet = InputContainer:extend{
+Sheet.AnnotationSheet = InputContainer:extend{
     note = nil, viewer = nil, parent_widget = nil,
 }
-function AnnotationSheet:init()
+function Sheet.AnnotationSheet:init()
     self.dimen = Geom:new{ x = 0, y = 0, w = Screen:getWidth(), h = Screen:getHeight() }
     self.ges_events = {
         TapOutside = { GestureRange:new{ ges = "tap", range = self.dimen } },
@@ -211,10 +124,10 @@ function AnnotationSheet:init()
     self:build()
 end
 -- Rounded-shape row helpers live in anv_atoms, alongside the widgets that draw them.
-local circleInset, paintRow = atoms.circleInset, atoms.paintRow
+Sheet.circleInset, Sheet.paintRow = atoms.circleInset, atoms.paintRow
 
 -- Bottom sheet: white panel across the full width, rounded top corners, border on top only.
-local function decoratedText(tw, deco, color)
+function Sheet.decoratedText(tw, deco, color)
     if not deco then return tw end
     local sz = tw:getSize()
     local line_h = Size.line.medium
@@ -227,9 +140,9 @@ local function decoratedText(tw, deco, color)
         VerticalGroup:new{ VerticalSpan:new{ width = math.floor(sz.h * 0.55) }, line } }
 end
 
-function AnnotationSheet:build()
+function Sheet.AnnotationSheet:build()
     local note, viewer, parent = self.note, self.viewer, self.parent_widget
-    local nw = NoteWrapper:new(note)
+    local nw = core.NoteWrapper:new(note)
     local W, H = Screen:getWidth(), Screen:getHeight()
     -- tap outside: the whole of the current screen (also after a rotation)
     self.ges_events.TapOutside = { GestureRange:new{ ges = "tap", range = Geom:new{ x = 0, y = 0, w = W, h = H } } }
@@ -243,8 +156,8 @@ function AnnotationSheet:build()
     -- KOReader's own border sizes (Size.*): scaled for the screen's DPI like all its dialogs
     local thick = Size.border.thick   -- 2px at 160dpi
     local thin = Size.border.button   -- 1.5px at 160dpi
-    local LIGHT = COLORS.line
-    local MUTED = COLORS.muted
+    local LIGHT = core.COLORS.line
+    local MUTED = core.COLORS.muted
     local label_face = Font:getFace("cfont", 11)
     local group = VerticalGroup:new{ align = "left" }
     local function sectionLabel(text, right)
@@ -260,7 +173,7 @@ function AnnotationSheet:build()
             fgcolor = primary and BlitBuffer.COLOR_WHITE or BlitBuffer.COLOR_BLACK }
         local height = Screen:scaleBySize(48)
         local bw = primary and 0 or thin
-        return TapBox:new{
+        return atoms.TapBox:new{
             FrameContainer:new{
                 bordersize = bw, radius = Screen:scaleBySize(8), padding = 0, margin = 0,
                 background = primary and BlitBuffer.COLOR_BLACK or BlitBuffer.COLOR_WHITE,
@@ -286,10 +199,10 @@ function AnnotationSheet:build()
     local page_no = note.page_label
     if page_no == nil and tonumber(note.page) and tonumber(note.page) > 0 then page_no = tonumber(note.page) end
     if page_no ~= nil and page_no ~= "" then table.insert(meta, _("page") .. " " .. tostring(page_no)) end
-    local date_text = NoteItemWidget:formatDate(note.datetime, NoteItemWidget.dateStyle("sheet"))
+    local date_text = item.NoteItemWidget:formatDate(note.datetime, item.NoteItemWidget.dateStyle("sheet"))
     if date_text then table.insert(meta, date_text) end
     local head = VerticalGroup:new{ align = "left",
-        TextBoxWidget:new{ text = note.book_title or _("Annotation"), face = getFaceOr(SERIF_FONT, 20, "cfont"),
+        TextBoxWidget:new{ text = note.book_title or _("Annotation"), face = core.getFaceOr(core.SERIF_FONT, 20, "cfont"),
             bold = true, width = text_w },
     }
     if #meta > 0 then
@@ -300,7 +213,7 @@ function AnnotationSheet:build()
     -- close button pulled up and right like the mockup (-8px / -10px)
     table.insert(group, HorizontalGroup:new{ align = "top", head,
         HorizontalSpan:new{ width = inner - text_w - close_w + Screen:scaleBySize(10) },
-        VerticalGroup:new{ VerticalSpan:new{ width = 0 }, close_btn } })
+        VerticalGroup:new{ close_btn } })
     table.insert(group, VerticalSpan:new{ width = gap - Screen:scaleBySize(8) })
 
     -- 2. the highlight in a rounded box: filled with its colour (Lighten) or black (Invert),
@@ -308,31 +221,31 @@ function AnnotationSheet:build()
     -- Long ones are cut and open in full on tap.
     if nw:hasHighlightedText() then
         local drawer = note.drawer or "lighten"
-        local no_fill = isNoBackgroundStyle(drawer)
+        local no_fill = core.isNoBackgroundStyle(drawer)
         local fill
         if drawer == "invert" then
             fill = BlitBuffer.COLOR_BLACK
         elseif not no_fill then
             -- same colour value and the same drawing call (paintRectRGB32) as the list's lines,
             -- so the screen turns it into exactly the same shade there and here
-            fill = getHighlightColor(note.color)
+            fill = core.getHighlightColor(note.color)
         end
-        local quote_text = cleanHighlightText(note.highlighted_text)
-        local content_face = select(3, getNoteFaces())
-        local max_lines = math.max(3, math.floor(H * 0.28 / (getLineHeight(content_face) + 2)))
+        local quote_text = Sheet.cleanHighlightText(note.highlighted_text)
+        local content_face = select(3, item.getNoteFaces())
+        local max_lines = math.max(3, math.floor(H * 0.28 / (text.getLineHeight(content_face) + 2)))
         local pad_v, pad_h = Screen:scaleBySize(10), Screen:scaleBySize(12)
         local ob = Size.border.thin
         -- same outer size for every style: the outline (when shown) takes the place of padding
         local bw = no_fill and ob or 0
-        local lines, cut = buildHighlightLines(quote_text, content_face, inner - (pad_h + ob) * 2,
+        local lines, cut = Sheet.buildHighlightLines(quote_text, content_face, inner - (pad_h + ob) * 2,
             drawer, note.color, max_lines, true)
-        local box = RoundedBox:new{
+        local box = atoms.RoundedBox:new{
             true_color = not no_fill and drawer ~= "invert",
             width = inner, fill = fill or BlitBuffer.COLOR_WHITE, radius = Screen:scaleBySize(6),
             border = bw, border_color = LIGHT, pad_x = pad_h + ob, pad_y = pad_v + ob,
             lines,
         }
-        table.insert(group, cut and TapBox:new{ box, callback = function()
+        table.insert(group, cut and atoms.TapBox:new{ box, callback = function()
             NotesListWidget.showDialog(TextViewer:new{ title = note.book_title or _("Annotation"), text = quote_text })
         end } or box)
         if cut then
@@ -346,8 +259,8 @@ function AnnotationSheet:build()
     -- 3. note, with an underlined Edit / Add note link
     local has_note = nw:hasUserNote()
     local link = TextWidget:new{ text = has_note and _("Edit") or _("Add note"), face = Font:getFace("cfont", 13) }
-    local edit_link = TapBox:new{
-        decoratedText(link, "underline", BlitBuffer.COLOR_BLACK),
+    local edit_link = atoms.TapBox:new{
+        Sheet.decoratedText(link, "underline", BlitBuffer.COLOR_BLACK),
         callback = function()
             viewer:editNote(note, parent, function() self:rebuild() end)
         end,
@@ -376,7 +289,7 @@ function AnnotationSheet:build()
     local cell_h = Screen:scaleBySize(44)
     local seg = HorizontalGroup:new{}
     local ui_face = Font:getFace("cfont", 14)
-    for i, st in ipairs(HIGHLIGHT_STYLES) do
+    for i, st in ipairs(core.HIGHLIGHT_STYLES) do
         local key = st[1]
         local on = (current == key)
         if i > 1 then
@@ -386,8 +299,8 @@ function AnnotationSheet:build()
         local tw = TextWidget:new{ text = st[2], face = ui_face, bold = on, fgcolor = color,
             max_width = cell_w - Screen:scaleBySize(24) }
         local deco = (key == "underscore" and "underline") or (key == "strikeout" and "strike") or nil
-        local label = HorizontalGroup:new{ align = "center", decoratedText(tw, deco, color) }
-        table.insert(seg, TapBox:new{
+        local label = HorizontalGroup:new{ align = "center", Sheet.decoratedText(tw, deco, color) }
+        table.insert(seg, atoms.TapBox:new{
             FrameContainer:new{
                 bordersize = 0, padding = 0, margin = 0,
                 background = on and BlitBuffer.COLOR_BLACK or BlitBuffer.COLOR_WHITE,
@@ -401,7 +314,7 @@ function AnnotationSheet:build()
             end,
         })
     end
-    table.insert(group, RoundedOutline:new{ radius = Screen:scaleBySize(8), border = thin, seg })
+    table.insert(group, atoms.RoundedOutline:new{ radius = Screen:scaleBySize(8), border = thin, seg })
     table.insert(group, VerticalSpan:new{ width = gap })
 
     -- 5. colour: white rounded chips with a colour dot and the name; the chosen one has a
@@ -417,20 +330,22 @@ function AnnotationSheet:build()
     local rows = VerticalGroup:new{ align = "left" }
     local row, row_w = HorizontalGroup:new{}, 0
     for _i, c in ipairs(ReaderHighlight.highlight_colors) do
-        local key, name = c[2], NoteItemWidget.colorLabel(c[2])
+        local key, name = c[2], item.NoteItemWidget.colorLabel(c[2])
         local on = (cur_color == key)
-        local widest = TextWidget:new{ text = name, face = chip_face, bold = true }:getSize().w
+        local measured = TextWidget:new{ text = name, face = chip_face, bold = true }
+        local widest = measured:getSize().w
+        measured:free()
         local label = HorizontalGroup:new{ align = "center",
-            Pill:new{ width = dot, height = dot, border = 0, true_color = true,
-                fill = key == "gray" and BlitBuffer.COLOR_GRAY or getHighlightColor(key) },
+            atoms.Pill:new{ width = dot, height = dot, border = 0, true_color = true,
+                fill = key == "gray" and BlitBuffer.COLOR_GRAY or core.getHighlightColor(key) },
             HorizontalSpan:new{ width = Screen:scaleBySize(6) },
             TextWidget:new{ text = name, face = chip_face, bold = on },
         }
         -- the same space on both sides: dot and name sit in the middle of the chip
         local pad = Screen:scaleBySize(12)
         local chip_w = pad * 2 + dot + Screen:scaleBySize(6) + widest
-        local chip = TapBox:new{
-            Pill:new{
+        local chip = atoms.TapBox:new{
+            atoms.Pill:new{
                 width = chip_w, height = chip_h,
                 label, -- Pill centres its child
                 fill = BlitBuffer.COLOR_WHITE,
@@ -491,7 +406,7 @@ function AnnotationSheet:build()
                 self:rebuild()
             end
             table.insert(group, VerticalSpan:new{ width = Screen:scaleBySize(12) })
-            table.insert(group, LineWidget:new{ dimen = Geom:new{ w = inner, h = Size.line.medium }, background = COLORS.line })
+            table.insert(group, LineWidget:new{ dimen = Geom:new{ w = inner, h = Size.line.medium }, background = core.COLORS.line })
             table.insert(group, NotesListWidget.navBar{
                 width = inner, label = string.format("%d / %d", idx, #list),
                 has_prev = idx > 1, has_next = idx < #list,
@@ -501,49 +416,36 @@ function AnnotationSheet:build()
         end
     end
 
-    self.sheet = SheetFrame:new{
+    self.sheet = atoms.SheetFrame:new{
         -- Size.border.window: the outline KOReader uses on its own dialogs and buttons
         width = sheet_w, radius = Screen:scaleBySize(14), border = Size.border.window,
         pad_x = P, pad_top = Screen:scaleBySize(18), pad_bottom = Screen:scaleBySize(18), -- same as screen footers
         group,
     }
     local sheet_h = self.sheet:getSize().h
+    if self[1] and self[1].free then self[1]:free() end -- release the previous tree on rebuild
     self[1] = BottomContainer:new{
         dimen = Geom:new{ w = W, h = H },
         CenterContainer:new{ dimen = Geom:new{ w = W, h = sheet_h }, self.sheet },
     }
 end
-function AnnotationSheet:rebuild()
+function Sheet.AnnotationSheet:rebuild()
     self:build()
     UIManager:setDirty(self, "ui")
 end
-function AnnotationSheet:onTapOutside(_, ges)
+function Sheet.AnnotationSheet:onTapOutside(_, ges)
     local d = self.sheet and self.sheet.dimen
     if d and ges and ges.pos and ges.pos:intersectWith(d) then return true end
     self:onClose()
     return true
 end
-function AnnotationSheet:onClose()
+function Sheet.AnnotationSheet:onClose()
     UIManager:close(self, "ui", self.sheet and self.sheet.dimen)
     return true
 end
 
--- "Filter & sort": full-screen page from the mockup. Changes apply straight away (the list
--- behind updates and the button shows how many are left); Cancel / ✕ / Back put everything
--- back as it was when the page opened.
--- Shared title bar for full-screen pages (Filter & sort, pickers): same height, icon size,
--- spacing and serif title as the list's top bar; ‹ on the left, ✕ on the right (both cancel).
-
--- Module exports
-M.cleanHighlightText = cleanHighlightText
-M.buildHighlightLines = buildHighlightLines
-M.AnnotationSheet = AnnotationSheet
-M.circleInset = circleInset
-M.paintRow = paintRow
-M.decoratedText = decoratedText
-
-function M.bind(deps)
+function Sheet.bind(deps)
     if deps.NotesListWidget then NotesListWidget = deps.NotesListWidget end
 end
 
-return M
+return Sheet

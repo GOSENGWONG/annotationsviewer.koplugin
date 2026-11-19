@@ -1,121 +1,25 @@
-local M = {}
+-- anv_sort.lua — Annotations Viewer
+--
+-- Sorting logic: SortState parses, validates, stores and describes
+-- multi-level sort modes, with a separate mode per tab. SORT_COMPARATORS
+-- lazily builds a table.sort comparator for any mode.
+--
+-- Public API (used by other modules):
+--   SortState    sort-mode state: get/set, getFor/setFor, parse/encode,
+--                snapshot/restore, view/normView, revalidate, describe,
+--                allowedAfter, keyName/dirName, QUICK_BOOK
+--   SORT_COMPARATORS    mode -> table.sort comparator (built lazily)
+--   STYLE_NAMES    localized highlight-style names
+--   normalizeBookTitle    normalized title for title sorting
+--   compareByPosition    position-based comparator
+--   sortModeLabel    readable label for a sort mode
+
+local Sort = {}
 
 local core = require("anv_core")
+local _ = require("anv_i18n").gettext
 
-local WidgetContainer = core.WidgetContainer
-local ReaderHighlight = core.ReaderHighlight
-local FrameContainer = core.FrameContainer
-local VerticalGroup = core.VerticalGroup
-local VerticalSpan = core.VerticalSpan
-local Event = core.Event
-local HorizontalGroup = core.HorizontalGroup
-local HorizontalSpan = core.HorizontalSpan
-local LeftContainer = core.LeftContainer
-local TopContainer = core.TopContainer
-local BottomContainer = core.BottomContainer
-local OverlapGroup = core.OverlapGroup
-local CenterContainer = core.CenterContainer
-local TextBoxWidget = core.TextBoxWidget
-local TextWidget = core.TextWidget
-local InputContainer = core.InputContainer
-local GestureRange = core.GestureRange
-local UIManager = core.UIManager
-local InfoMessage = core.InfoMessage
-local TextViewer = core.TextViewer
-local SpinWidget = core.SpinWidget
-local IconButton = core.IconButton
-local IconWidget = core.IconWidget
-local LineWidget = core.LineWidget
-local RightContainer = core.RightContainer
-local BlitBuffer = core.BlitBuffer
-local Screen = core.Screen
-local Device = core.Device
-local Input = core.Input
-local logger = core.logger
-local FontList = core.FontList
-local DocSettings = core.DocSettings
-local ReadHistory = core.ReadHistory
-local G_reader_settings = core.G_reader_settings
-local lfs = core.lfs
-local Font = core.Font
-local Size = core.Size
-local Geom = core.Geom
-local _ = core._
-local BD = core.BD
-
-local DEFAULT_CONTENT_FONT_SIZE = core.DEFAULT_CONTENT_FONT_SIZE
-local DEFAULT_TITLE_FONT_SIZE = core.DEFAULT_TITLE_FONT_SIZE
-local DEFAULT_INFO_FONT_SIZE = core.DEFAULT_INFO_FONT_SIZE
-local DEFAULT_H_MARGIN = core.DEFAULT_H_MARGIN
-local DEFAULT_NOTE_SPACING = core.DEFAULT_NOTE_SPACING
-local DEFAULT_TEXT_MARGIN = core.DEFAULT_TEXT_MARGIN
-local DEFAULT_TRUNCATE_LINES = core.DEFAULT_TRUNCATE_LINES
-local DEFAULT_TITLE_MARGIN = core.DEFAULT_TITLE_MARGIN
-local DEFAULT_INFO_MARGIN = core.DEFAULT_INFO_MARGIN
-local DEFAULT_TOP_PADDING = core.DEFAULT_TOP_PADDING
-local getSetting = core.getSetting
-local setSetting = core.setSetting
-local flushSettings = core.flushSettings
-local getContentFontSize = core.getContentFontSize
-local getTitleFontSize = core.getTitleFontSize
-local getInfoFontSize = core.getInfoFontSize
-local getHMargin = core.getHMargin
-local getNoteSpacing = core.getNoteSpacing
-local getTextMargin = core.getTextMargin
-local getTruncateLines = core.getTruncateLines
-local getJustify = core.getJustify
-local getTitleMargin = core.getTitleMargin
-local getInfoMargin = core.getInfoMargin
-local getTitleFont = core.getTitleFont
-local getInfoFont = core.getInfoFont
-local getContentFont = core.getContentFont
-local getShowTotalNotes = core.getShowTotalNotes
-local getTopPadding = core.getTopPadding
-local getHideDupTitle = core.getHideDupTitle
-local getHideDupInfo = core.getHideDupInfo
-local getSwipeSetting = core.getSwipeSetting
-local getDedupInfoFields = core.getDedupInfoFields
-local getShowInfo = core.getShowInfo
-local getInfoFields = core.getInfoFields
-local getAlwaysShowFirstOnPage = core.getAlwaysShowFirstOnPage
-local getRepeatTitleOnPage = core.getRepeatTitleOnPage
-local getRepeatInfoOnPage = core.getRepeatInfoOnPage
-local getHeaderSkips = core.getHeaderSkips
-local getPaginationStyle = core.getPaginationStyle
-local getScrollbarBookMarks = core.getScrollbarBookMarks
-local isScrollbarStyle = core.isScrollbarStyle
-local getNoteInfoKey = core.getNoteInfoKey
-local BOOK_GAP = core.BOOK_GAP
-local SB_THUMB_WIDTH = core.SB_THUMB_WIDTH
-local SB_TRACK_WIDTH = core.SB_TRACK_WIDTH
-local SB_STRIP_WIDTH = core.SB_STRIP_WIDTH
-local SB_MARGIN_RIGHT = core.SB_MARGIN_RIGHT
-local SB_MARGIN_V_TOP = core.SB_MARGIN_V_TOP
-local SB_MARGIN_V_BOTTOM = core.SB_MARGIN_V_BOTTOM
-local SB_MARK_OVERHANG = core.SB_MARK_OVERHANG
-local SB_MARK_HEIGHT = core.SB_MARK_HEIGHT
-local TOPBAR_HEIGHT = core.TOPBAR_HEIGHT
-local TOPBAR_BOOK_HEIGHT = core.TOPBAR_BOOK_HEIGHT
-local TABS_HEIGHT = core.TABS_HEIGHT
-local FOOTER_BAR_HEIGHT = core.FOOTER_BAR_HEIGHT
-local HEADER_ICON_SIZE = core.HEADER_ICON_SIZE
-local HEADER_ICON_PAD = core.HEADER_ICON_PAD
-local SERIF_FONT = core.SERIF_FONT
-local PLUGIN_DIR = core.PLUGIN_DIR
-local pluginIcon = core.pluginIcon
-local getFaceOr = core.getFaceOr
-local COLORS = core.COLORS
-local HIGHLIGHT_COLORS = core.HIGHLIGHT_COLORS
-local SPIN_MENUS = core.SPIN_MENUS
-local HIGHLIGHT_STYLES = core.HIGHLIGHT_STYLES
-local getHighlightColor = core.getHighlightColor
-local colorName = core.colorName
-local isNoBackgroundStyle = core.isNoBackgroundStyle
-local truncateAuthorDisplay = core.truncateAuthorDisplay
-local NoteWrapper = core.NoteWrapper
-
-
-local SORT_MODES = {
+Sort.SORT_MODES = {
     date_newest = { label = _("Newest First") },
     date_oldest = { label = _("Oldest First") },
     author_asc = { label = _("A to Z (by Date)") },
@@ -135,21 +39,21 @@ local SORT_MODES = {
 }
 
 -- Sorting compares titles many times; normalise each title only once.
-local _normalized_title_cache = {}
-local _lower_cache = {}
-local function lowerCached(str)
+Sort._normalized_title_cache = {}
+Sort._lower_cache = {}
+function Sort.lowerCached(str)
     str = str or ""
-    local l = _lower_cache[str]
-    if not l then l = str:lower(); _lower_cache[str] = l end
+    local l = Sort._lower_cache[str]
+    if not l then l = str:lower(); Sort._lower_cache[str] = l end
     return l
 end
 local normalizeBookTitleUncached
-local function normalizeBookTitle(title)
+function Sort.normalizeBookTitle(title)
     if not title then return "" end
-    local n = _normalized_title_cache[title]
+    local n = Sort._normalized_title_cache[title]
     if not n then
         n = normalizeBookTitleUncached(title)
-        _normalized_title_cache[title] = n
+        Sort._normalized_title_cache[title] = n
     end
     return n
 end
@@ -162,7 +66,7 @@ end
 -- Where a note sits in its book: page first, then the exact spot. EPUB-like books
 -- keep an xpointer text ("/body/DocFragment[3]/body/p[12]/text().5") in pos0, PDFs a
 -- table with x/y; neither is a number, so compare their digit runs one by one.
-local function positionKey(n)
+function Sort.positionKey(n)
     local key = { tonumber(n.page) or 0 }
     local p = n.pos0
     if type(p) == "string" then
@@ -173,14 +77,14 @@ local function positionKey(n)
     end
     return key
 end
-local function compareByPosition(a, b, reverse)
+function Sort.compareByPosition(a, b, reverse)
     -- KOReader keeps a book's annotations in reading order, so the place in that list
     -- is the most reliable position (an xpointer alone can't tell h2[1] from p[2])
     local oa, ob = tonumber(a.order), tonumber(b.order)
     if oa and ob and oa ~= ob then
         if reverse then return oa > ob else return oa < ob end
     end
-    local ka, kb = positionKey(a), positionKey(b)
+    local ka, kb = Sort.positionKey(a), Sort.positionKey(b)
     for i = 1, math.max(#ka, #kb) do
         local x, y = ka[i] or -1, kb[i] or -1
         if x ~= y then
@@ -193,8 +97,8 @@ end
 -- A sort order is a rule: up to three levels "key:direction" joined by commas, for example
 -- "author:asc,book:asc,pos:asc". The old fixed names (author_location_asc, ...) still work and are
 -- translated to rules. Whatever the levels leave tied is settled by: book A-Z, newest first, position.
-local SortState = { opened = {}, cache = {} }
-SortState.LEGACY = {
+Sort.SortState = { opened = {}, cache = {} }
+Sort.SortState.LEGACY = {
     date_newest = "date:desc", date_oldest = "date:asc",
     author_asc = "author:asc", author_desc = "author:desc",
     author_location_asc = "author:asc,book:asc,pos:asc", author_location_desc = "author:asc,book:asc,pos:desc",
@@ -204,15 +108,15 @@ SortState.LEGACY = {
     filename_location_asc = "file:asc,pos:asc", filename_location_desc = "file:asc,pos:desc",
     opened_recent = "opened:desc", opened_oldest = "opened:asc",
 }
-SortState.KEYS = { date = true, opened = true, author = true, book = true, file = true, pos = true, chapter = true }
+Sort.SortState.KEYS = { date = true, opened = true, author = true, book = true, file = true, pos = true, chapter = true }
 -- Parse a rule (or an old name) into { {key=, dir=}, ... }; nil when it is not valid.
-function SortState.parse(mode)
+function Sort.SortState.parse(mode)
     if type(mode) ~= "string" then return nil end
-    mode = SortState.LEGACY[mode] or mode
+    mode = Sort.SortState.LEGACY[mode] or mode
     local levels = {}
     for tok in mode:gmatch("[^,]+") do
         local key, dir = tok:match("^(%a+):(%a+)$")
-        if not (key and SortState.KEYS[key] and (dir == "asc" or dir == "desc")) then return nil end
+        if not (key and Sort.SortState.KEYS[key] and (dir == "asc" or dir == "desc")) then return nil end
         levels[#levels + 1] = { key = key, dir = dir }
     end
     if #levels == 0 or #levels > 3 then return nil end
@@ -222,46 +126,46 @@ end
 -- never had its own order set starts in reading order (first highlight in the book first).
 -- The Bookmarks tab has an order of its own too (bm_tab: the list is on that tab); until one is
 -- set it follows the annotations' order.
-function SortState.get(single) return SortState.getFor(single, SortState.bm_tab) end
-function SortState.set(single, mode) SortState.setFor(single, SortState.bm_tab, mode) end
+function Sort.SortState.get(single) return Sort.SortState.getFor(single, Sort.SortState.bm_tab) end
+function Sort.SortState.set(single, mode) Sort.SortState.setFor(single, Sort.SortState.bm_tab, mode) end
 -- bm: the order of the Bookmarks tab (else of the annotation tabs)
-function SortState.getFor(single, bm)
+function Sort.SortState.getFor(single, bm)
     if bm then
-        local own = getSetting(single and "sort_mode_book_bm" or "sort_mode_bm", nil)
+        local own = core.getSetting(single and "sort_mode_book_bm" or "sort_mode_bm", nil)
         if own then return own end
     end
-    if single then return getSetting("sort_mode_book", nil) or "book:asc,pos:asc" end
-    return getSetting("sort_mode", "date_newest")
+    if single then return core.getSetting("sort_mode_book", nil) or "book:asc,pos:asc" end
+    return core.getSetting("sort_mode", "date_newest")
 end
-function SortState.setFor(single, bm, mode)
-    setSetting((single and "sort_mode_book" or "sort_mode") .. (bm and "_bm" or ""), mode)
+function Sort.SortState.setFor(single, bm, mode)
+    core.setSetting((single and "sort_mode_book" or "sort_mode") .. (bm and "_bm" or ""), mode)
 end
 -- All four sort orders as stored, for Cancel: nil for the Bookmarks tab means "follow the
 -- annotation order", and has to come back as nil, not as a copy of that order.
-SortState.SETTING_KEYS = { "sort_mode", "sort_mode_bm", "sort_mode_book", "sort_mode_book_bm" }
-function SortState.snapshot()
+Sort.SortState.SETTING_KEYS = { "sort_mode", "sort_mode_bm", "sort_mode_book", "sort_mode_book_bm" }
+function Sort.SortState.snapshot()
     local snap = {}
-    for i = 1, #SortState.SETTING_KEYS do snap[i] = getSetting(SortState.SETTING_KEYS[i], nil) end
+    for i = 1, #Sort.SortState.SETTING_KEYS do snap[i] = core.getSetting(Sort.SortState.SETTING_KEYS[i], nil) end
     return snap
 end
 -- Puts them back; true when something changed.
-function SortState.restore(snap)
+function Sort.SortState.restore(snap)
     local changed = false
-    for i = 1, #SortState.SETTING_KEYS do
-        if getSetting(SortState.SETTING_KEYS[i], nil) ~= snap[i] then
-            setSetting(SortState.SETTING_KEYS[i], snap[i])
+    for i = 1, #Sort.SortState.SETTING_KEYS do
+        if core.getSetting(Sort.SortState.SETTING_KEYS[i], nil) ~= snap[i] then
+            core.setSetting(Sort.SortState.SETTING_KEYS[i], snap[i])
             changed = true
         end
     end
     return changed
 end
-function SortState.encode(levels)
+function Sort.SortState.encode(levels)
     local parts = {}
     for _, l in ipairs(levels) do parts[#parts + 1] = l.key .. ":" .. l.dir end
     return table.concat(parts, ",")
 end
 -- Keys that still do something after the levels chosen so far.
-function SortState.allowedAfter(prev, single)
+function Sort.SortState.allowedAfter(prev, single)
     -- one book: every highlight has the same author, title and file, so only date and place count
     if single then
         if not prev then return { "date", "pos", "chapter" } end
@@ -275,12 +179,12 @@ function SortState.allowedAfter(prev, single)
     return { "date", "pos" } -- book, file name and last opened already single out a book
 end
 -- The rule as it applies to a view: in one book only its date or place part counts.
-function SortState.view(mode, single)
-    local levels = SortState.parse(mode) or SortState.parse("date:desc")
+function Sort.SortState.view(mode, single)
+    local levels = Sort.SortState.parse(mode) or Sort.SortState.parse("date:desc")
     if not single then
         -- a rule saved for one book (chapter) or edited by hand: keep what makes sense here
-        local out = SortState.revalidate(levels, false)
-        if #out == 0 then out = SortState.parse("date:desc") end
+        local out = Sort.SortState.revalidate(levels, false)
+        if #out == 0 then out = Sort.SortState.parse("date:desc") end
         return out
     end
     local first = levels[1].key
@@ -289,7 +193,7 @@ function SortState.view(mode, single)
         for _, l in ipairs(levels) do
             if l.key == "date" or l.key == "chapter" or l.key == "pos" then keep[#keep + 1] = l end
         end
-        local out = SortState.revalidate(keep, true)
+        local out = Sort.SortState.revalidate(keep, true)
         -- a chapter on its own: inside a chapter the highlights follow the book
         if out[#out].key == "chapter" then out[#out + 1] = { key = "pos", dir = "asc" } end
         return out
@@ -301,34 +205,34 @@ function SortState.view(mode, single)
     for _, l in ipairs(levels) do
         if l.key == "date" then return { { key = "date", dir = l.dir } } end
     end
-    return SortState.parse("date:desc")
+    return Sort.SortState.parse("date:desc")
 end
-function SortState.normView(mode, single)
-    return SortState.encode(SortState.view(mode, single))
+function Sort.SortState.normView(mode, single)
+    return Sort.SortState.encode(Sort.SortState.view(mode, single))
 end
-function SortState.cmp3(x, y) if x < y then return -1 elseif x > y then return 1 end return 0 end
-function SortState.keyCmp(key, a, b)
-    if key == "date" then return SortState.cmp3(a.datetime or "", b.datetime or "")
-    elseif key == "opened" then return SortState.cmp3(SortState.opened[a.book_path or ""] or 0, SortState.opened[b.book_path or ""] or 0)
-    elseif key == "author" then return SortState.cmp3(lowerCached(a.book_authors), lowerCached(b.book_authors))
-    elseif key == "book" then return SortState.cmp3(normalizeBookTitle(a.book_title), normalizeBookTitle(b.book_title))
-    elseif key == "file" then return SortState.cmp3(lowerCached(a.book_filename), lowerCached(b.book_filename))
-    elseif key == "chapter" then return SortState.cmp3(a.chapter_rank or 0, b.chapter_rank or 0) end
+function Sort.SortState.cmp3(x, y) if x < y then return -1 elseif x > y then return 1 end return 0 end
+function Sort.SortState.keyCmp(key, a, b)
+    if key == "date" then return Sort.SortState.cmp3(a.datetime or "", b.datetime or "")
+    elseif key == "opened" then return Sort.SortState.cmp3(Sort.SortState.opened[a.book_path or ""] or 0, Sort.SortState.opened[b.book_path or ""] or 0)
+    elseif key == "author" then return Sort.SortState.cmp3(Sort.lowerCached(a.book_authors), Sort.lowerCached(b.book_authors))
+    elseif key == "book" then return Sort.SortState.cmp3(Sort.normalizeBookTitle(a.book_title), Sort.normalizeBookTitle(b.book_title))
+    elseif key == "file" then return Sort.SortState.cmp3(Sort.lowerCached(a.book_filename), Sort.lowerCached(b.book_filename))
+    elseif key == "chapter" then return Sort.SortState.cmp3(a.chapter_rank or 0, b.chapter_rank or 0) end
     return 0
 end
-function SortState.posCmp(a, b, dir)
-    local c = SortState.keyCmp("book", a, b)
-    if c == 0 then c = SortState.cmp3(a.book_path or "", b.book_path or "") end
+function Sort.SortState.posCmp(a, b, dir)
+    local c = Sort.SortState.keyCmp("book", a, b)
+    if c == 0 then c = Sort.SortState.cmp3(a.book_path or "", b.book_path or "") end
     if c ~= 0 then return c end
     local pc = 0
-    if compareByPosition(a, b) then pc = -1 elseif compareByPosition(b, a) then pc = 1 end
+    if Sort.compareByPosition(a, b) then pc = -1 elseif Sort.compareByPosition(b, a) then pc = 1 end
     return dir == "desc" and -pc or pc
 end
-function SortState.build(mode)
-    local levels = SortState.parse(mode)
+function Sort.SortState.build(mode)
+    local levels = Sort.SortState.parse(mode)
     if not levels then return nil end
-    local id = SortState.encode(levels)
-    if SortState.cache[id] then return SortState.cache[id] end
+    local id = Sort.SortState.encode(levels)
+    if Sort.SortState.cache[id] then return Sort.SortState.cache[id] end
     local day_only = {}
     for n, l in ipairs(levels) do
         if l.key == "date" and levels[n + 1] then day_only[n] = true end
@@ -336,38 +240,38 @@ function SortState.build(mode)
     local f = function(a, b)
         for n, l in ipairs(levels) do
             local c
-            if l.key == "pos" then c = SortState.posCmp(a, b, l.dir)
+            if l.key == "pos" then c = Sort.SortState.posCmp(a, b, l.dir)
             elseif day_only[n] then
-                c = SortState.cmp3((a.datetime or ""):sub(1, 10), (b.datetime or ""):sub(1, 10))
+                c = Sort.SortState.cmp3((a.datetime or ""):sub(1, 10), (b.datetime or ""):sub(1, 10))
                 if l.dir == "desc" then c = -c end
             else
-                c = SortState.keyCmp(l.key, a, b)
+                c = Sort.SortState.keyCmp(l.key, a, b)
                 if l.dir == "desc" then c = -c end
             end
             if c ~= 0 then return c < 0 end
         end
-        local c = SortState.keyCmp("book", a, b)
-        if c == 0 then c = SortState.cmp3(a.book_path or "", b.book_path or "") end
+        local c = Sort.SortState.keyCmp("book", a, b)
+        if c == 0 then c = Sort.SortState.cmp3(a.book_path or "", b.book_path or "") end
         if c ~= 0 then return c < 0 end
-        c = -SortState.keyCmp("date", a, b)
+        c = -Sort.SortState.keyCmp("date", a, b)
         if c ~= 0 then return c < 0 end
-        return SortState.posCmp(a, b, "asc") < 0
+        return Sort.SortState.posCmp(a, b, "asc") < 0
     end
-    SortState.cache[id] = f
+    Sort.SortState.cache[id] = f
     return f
 end
-local SORT_COMPARATORS = setmetatable({}, { __index = function(_, mode) return SortState.build(mode) end })
-local SORT_CATEGORY_LABELS = { author = _("Author"), book = _("Book"), filename = _("Filename") }
-local SORT_SHORT_LABELS = {
+Sort.SORT_COMPARATORS = setmetatable({}, { __index = function(_, mode) return Sort.SortState.build(mode) end })
+Sort.SORT_CATEGORY_LABELS = { author = _("Author"), book = _("Book"), filename = _("Filename") }
+Sort.SORT_SHORT_LABELS = {
     date_newest = _("Newest first"), date_oldest = _("Oldest first"),
     asc = _("A–Z"), desc = _("Z–A"),
     location_asc = _("start to end"), location_desc = _("end to start"),
     opened_recent = _("Last opened first"), opened_oldest = _("Longest unopened first"),
 }
 -- Names and direction words of the rule levels (shared by the tab row label and the sort dropdown)
-SortState.KEY_NAMES = { date = _("Date"), opened = _("Last opened book"), author = _("Author"), book = _("Book"),
+Sort.SortState.KEY_NAMES = { date = _("Date"), opened = _("Last opened book"), author = _("Author"), book = _("Book"),
     file = _("Filename"), pos = _("Place in book"), chapter = _("Chapter") }
-SortState.DIR_NAMES = {
+Sort.SortState.DIR_NAMES = {
     date = { asc = _("Oldest first"), desc = _("Newest first") },
     opened = { asc = _("Longest ago first"), desc = _("Most recent first") },
     author = { asc = _("Author A to Z"), desc = _("Author Z to A") },
@@ -376,20 +280,20 @@ SortState.DIR_NAMES = {
     pos = { asc = _("Start of book first"), desc = _("End of book first") },
     chapter = { asc = _("From the start"), desc = _("From the end") },
 }
-SortState.QUICK_BOOK = {
+Sort.SortState.QUICK_BOOK = {
     { _("Newest"), "date:desc" }, { _("Oldest"), "date:asc" },
     { _("Position"), "pos:asc" }, { _("Reverse position"), "pos:desc" },
     { _("Chapter, newest first"), "chapter:asc,date:desc" }, { _("Chapter, oldest first"), "chapter:asc,date:asc" },
 }
-function SortState.keyName(key, single)
+function Sort.SortState.keyName(key, single)
     if single and key == "pos" then return _("Position") end
-    return SortState.KEY_NAMES[key]
+    return Sort.SortState.KEY_NAMES[key]
 end
-function SortState.dirName(key, dir, single)
+function Sort.SortState.dirName(key, dir, single)
     if single and key == "pos" then return dir == "asc" and _("From the start") or _("From the end") end
-    return SortState.DIR_NAMES[key][dir]
+    return Sort.SortState.DIR_NAMES[key][dir]
 end
-SortState.SHORT = {
+Sort.SortState.SHORT = {
     -- the same words as the default order's label, so one order never has two names
     date = { asc = _("Oldest first"), desc = _("Newest first") },
     opened = { asc = _("Opened long ago"), desc = _("Opened recently") },
@@ -401,11 +305,11 @@ SortState.SHORT = {
 }
 -- Keep the levels that still make sense in a row: a level goes when its key was already used or
 -- does nothing after the level before it, and everything after it goes too.
-function SortState.revalidate(levels, single)
+function Sort.SortState.revalidate(levels, single)
     local out, used = {}, {}
     for n, l in ipairs(levels) do
         local ok = false
-        for _, k in ipairs(SortState.allowedAfter(out[n - 1], single)) do if k == l.key then ok = true end end
+        for _, k in ipairs(Sort.SortState.allowedAfter(out[n - 1], single)) do if k == l.key then ok = true end end
         if not ok or used[l.key] or n > 3 then break end
         used[l.key] = true
         out[n] = l
@@ -413,7 +317,7 @@ function SortState.revalidate(levels, single)
     return out
 end
 -- One plain sentence per level: what the order is, in words.
-function SortState.describe(levels, single)
+function Sort.SortState.describe(levels, single)
     if single then
         local l = levels[1] or { key = "date", dir = "desc" }
         local function place(x)
@@ -488,9 +392,9 @@ function SortState.describe(levels, single)
     end
     return table.concat(out, " ")
 end
-local function sortModeLabel(mode, single)
+function Sort.sortModeLabel(mode, single)
     if single then
-        local v = SortState.view(mode, true)
+        local v = Sort.SortState.view(mode, true)
         local l = v[1]
         if l.key == "date" and v[2] then
             return l.dir == "desc" and _("Newest · position") or _("Oldest · position")
@@ -500,40 +404,25 @@ local function sortModeLabel(mode, single)
             return v[2].dir == "desc" and _("Chapter · newest") or _("Chapter · oldest")
         end
         if l.key == "pos" then return l.dir == "asc" and _("Position") or _("Reverse position") end
-        return SortState.SHORT.date[l.dir]
+        return Sort.SortState.SHORT.date[l.dir]
     end
-    if not SORT_MODES[mode] then
+    if not Sort.SORT_MODES[mode] then
         -- a rule that can't be read sorts newest first (sortNotesList): say so
-        if not SortState.parse(mode) then mode = "date_newest" else
+        if not Sort.SortState.parse(mode) then mode = "date_newest" else
             local parts = {}
-            for _, l in ipairs(SortState.view(mode, false)) do
-                parts[#parts + 1] = SortState.SHORT[l.key][l.dir]
+            for _, l in ipairs(Sort.SortState.view(mode, false)) do
+                parts[#parts + 1] = Sort.SortState.SHORT[l.key][l.dir]
             end
             return table.concat(parts, " › ")
         end
     end
-    if SORT_SHORT_LABELS[mode] then return SORT_SHORT_LABELS[mode] end
+    if Sort.SORT_SHORT_LABELS[mode] then return Sort.SORT_SHORT_LABELS[mode] end
     local cat, rest = mode:match("^(%a+)_(.+)$")
-    return (SORT_CATEGORY_LABELS[cat] or cat) .. " · " .. (SORT_SHORT_LABELS[rest] or SORT_MODES[mode].label)
+    return (Sort.SORT_CATEGORY_LABELS[cat] or cat) .. " · " .. (Sort.SORT_SHORT_LABELS[rest] or Sort.SORT_MODES[mode].label)
 end
 
 -- Active-filter chips under the tabs: one black chip per filter (tap to remove it),
 -- "Clear all", and "N of M" on the right. Laid out over as many rows as needed.
-local STYLE_NAMES = { lighten = _("Lighten"), underscore = _("Underline"), strikeout = _("Strikeout"), invert = _("Invert") }
+Sort.STYLE_NAMES = { lighten = _("Lighten"), underscore = _("Underline"), strikeout = _("Strikeout"), invert = _("Invert") }
 
--- Module exports
-M.SORT_MODES = SORT_MODES
-M._normalized_title_cache = _normalized_title_cache
-M._lower_cache = _lower_cache
-M.lowerCached = lowerCached
-M.normalizeBookTitle = normalizeBookTitle
-M.positionKey = positionKey
-M.compareByPosition = compareByPosition
-M.SortState = SortState
-M.SORT_COMPARATORS = SORT_COMPARATORS
-M.SORT_CATEGORY_LABELS = SORT_CATEGORY_LABELS
-M.SORT_SHORT_LABELS = SORT_SHORT_LABELS
-M.sortModeLabel = sortModeLabel
-M.STYLE_NAMES = STYLE_NAMES
-
-return M
+return Sort

@@ -1,192 +1,107 @@
-local M = {}
+-- anv_list.lua — Annotations Viewer
+--
+-- The main notes-list screen. NotesListWidget owns the tabbed list UI with
+-- pagination and scrollbar, filter chips and counts, plus search/sort/export
+-- menus, gestures and clipboard copy. It dispatches to the pickers and
+-- full-screen pages defined in anv_pages.
+--
+-- Public API (used by other modules):
+--   NotesListWidget    list screen class; main.lua builds and shows it
+--   bind    inject the AllNotesViewer collaborator
+--   NotesListWidget.applyFilter    apply a filter chip selection
+--   NotesListWidget.showDialog    show a dialog over the list
+--   NotesListWidget.samePath / realPath / bookKeys / _realpaths    book path identity
+--   NotesListWidget.sidecarCandidates    candidate sidecar paths for a book
+--   NotesListWidget.booksChanged    refresh on book-list changes
+--   NotesListWidget.metaValues / metaMatches / META_KINDS    metadata filtering
+--   NotesListWidget.bookKeys / markKey / dropStaleSearchOptions    key/book helpers
+--   NotesListWidget.navBar / trackWindow    navigation and window tracking
 
+local List = {}
+
+local FrameContainer = require("ui/widget/container/framecontainer")
+local VerticalGroup = require("ui/widget/verticalgroup")
+local VerticalSpan = require("ui/widget/verticalspan")
+local HorizontalGroup = require("ui/widget/horizontalgroup")
+local HorizontalSpan = require("ui/widget/horizontalspan")
+local LeftContainer = require("ui/widget/container/leftcontainer")
+local TopContainer = require("ui/widget/container/topcontainer")
+local BottomContainer = require("ui/widget/container/bottomcontainer")
+local OverlapGroup = require("ui/widget/overlapgroup")
+local CenterContainer = require("ui/widget/container/centercontainer")
+local TextWidget = require("ui/widget/textwidget")
+local InputContainer = require("ui/widget/container/inputcontainer")
+local GestureRange = require("ui/gesturerange")
+local UIManager = require("ui/uimanager")
+local InfoMessage = require("ui/widget/infomessage")
+local SpinWidget = require("ui/widget/spinwidget")
+local IconWidget = require("ui/widget/iconwidget")
+local LineWidget = require("ui/widget/linewidget")
+local RightContainer = require("ui/widget/container/rightcontainer")
+local BlitBuffer = require("ffi/blitbuffer")
+local Screen = require("device").screen
+local Device = require("device")
+local Input = Device.input
+local logger = require("logger")
+local DocSettings = require("docsettings")
+local ReadHistory = require("readhistory")
+local lfs = require("libs/libkoreader-lfs")
+local Font = require("ui/font")
+local Size = require("ui/size")
+local Geom = require("ui/geometry")
+local BD = require("ui/bidi")
 local core = require("anv_core")
-
-local WidgetContainer = core.WidgetContainer
-local ReaderHighlight = core.ReaderHighlight
-local FrameContainer = core.FrameContainer
-local VerticalGroup = core.VerticalGroup
-local VerticalSpan = core.VerticalSpan
-local Event = core.Event
-local HorizontalGroup = core.HorizontalGroup
-local HorizontalSpan = core.HorizontalSpan
-local LeftContainer = core.LeftContainer
-local TopContainer = core.TopContainer
-local BottomContainer = core.BottomContainer
-local OverlapGroup = core.OverlapGroup
-local CenterContainer = core.CenterContainer
-local TextBoxWidget = core.TextBoxWidget
-local TextWidget = core.TextWidget
-local InputContainer = core.InputContainer
-local GestureRange = core.GestureRange
-local UIManager = core.UIManager
-local InfoMessage = core.InfoMessage
-local TextViewer = core.TextViewer
-local SpinWidget = core.SpinWidget
-local IconButton = core.IconButton
-local IconWidget = core.IconWidget
-local LineWidget = core.LineWidget
-local RightContainer = core.RightContainer
-local BlitBuffer = core.BlitBuffer
-local Screen = core.Screen
-local Device = core.Device
-local Input = core.Input
-local logger = core.logger
-local FontList = core.FontList
-local DocSettings = core.DocSettings
-local ReadHistory = core.ReadHistory
-local G_reader_settings = core.G_reader_settings
-local lfs = core.lfs
-local Font = core.Font
-local Size = core.Size
-local Geom = core.Geom
-local _ = core._
-local BD = core.BD
-
-local DEFAULT_CONTENT_FONT_SIZE = core.DEFAULT_CONTENT_FONT_SIZE
-local DEFAULT_TITLE_FONT_SIZE = core.DEFAULT_TITLE_FONT_SIZE
-local DEFAULT_INFO_FONT_SIZE = core.DEFAULT_INFO_FONT_SIZE
-local DEFAULT_H_MARGIN = core.DEFAULT_H_MARGIN
-local DEFAULT_NOTE_SPACING = core.DEFAULT_NOTE_SPACING
-local DEFAULT_TEXT_MARGIN = core.DEFAULT_TEXT_MARGIN
-local DEFAULT_TRUNCATE_LINES = core.DEFAULT_TRUNCATE_LINES
-local DEFAULT_TITLE_MARGIN = core.DEFAULT_TITLE_MARGIN
-local DEFAULT_INFO_MARGIN = core.DEFAULT_INFO_MARGIN
-local DEFAULT_TOP_PADDING = core.DEFAULT_TOP_PADDING
-local getSetting = core.getSetting
-local setSetting = core.setSetting
-local flushSettings = core.flushSettings
-local getContentFontSize = core.getContentFontSize
-local getTitleFontSize = core.getTitleFontSize
-local getInfoFontSize = core.getInfoFontSize
-local getHMargin = core.getHMargin
-local getNoteSpacing = core.getNoteSpacing
-local getTextMargin = core.getTextMargin
-local getTruncateLines = core.getTruncateLines
-local getJustify = core.getJustify
-local getTitleMargin = core.getTitleMargin
-local getInfoMargin = core.getInfoMargin
-local getTitleFont = core.getTitleFont
-local getInfoFont = core.getInfoFont
-local getContentFont = core.getContentFont
-local getShowTotalNotes = core.getShowTotalNotes
-local getTopPadding = core.getTopPadding
-local getHideDupTitle = core.getHideDupTitle
-local getHideDupInfo = core.getHideDupInfo
-local getSwipeSetting = core.getSwipeSetting
-local getDedupInfoFields = core.getDedupInfoFields
-local getShowInfo = core.getShowInfo
-local getInfoFields = core.getInfoFields
-local getAlwaysShowFirstOnPage = core.getAlwaysShowFirstOnPage
-local getRepeatTitleOnPage = core.getRepeatTitleOnPage
-local getRepeatInfoOnPage = core.getRepeatInfoOnPage
-local getHeaderSkips = core.getHeaderSkips
-local getPaginationStyle = core.getPaginationStyle
-local getScrollbarBookMarks = core.getScrollbarBookMarks
-local isScrollbarStyle = core.isScrollbarStyle
-local getNoteInfoKey = core.getNoteInfoKey
-local BOOK_GAP = core.BOOK_GAP
-local SB_THUMB_WIDTH = core.SB_THUMB_WIDTH
-local SB_TRACK_WIDTH = core.SB_TRACK_WIDTH
-local SB_STRIP_WIDTH = core.SB_STRIP_WIDTH
-local SB_MARGIN_RIGHT = core.SB_MARGIN_RIGHT
-local SB_MARGIN_V_TOP = core.SB_MARGIN_V_TOP
-local SB_MARGIN_V_BOTTOM = core.SB_MARGIN_V_BOTTOM
-local SB_MARK_OVERHANG = core.SB_MARK_OVERHANG
-local SB_MARK_HEIGHT = core.SB_MARK_HEIGHT
-local TOPBAR_HEIGHT = core.TOPBAR_HEIGHT
-local TOPBAR_BOOK_HEIGHT = core.TOPBAR_BOOK_HEIGHT
-local TABS_HEIGHT = core.TABS_HEIGHT
-local FOOTER_BAR_HEIGHT = core.FOOTER_BAR_HEIGHT
-local HEADER_ICON_SIZE = core.HEADER_ICON_SIZE
-local HEADER_ICON_PAD = core.HEADER_ICON_PAD
-local SERIF_FONT = core.SERIF_FONT
-local PLUGIN_DIR = core.PLUGIN_DIR
-local pluginIcon = core.pluginIcon
-local getFaceOr = core.getFaceOr
-local COLORS = core.COLORS
-local HIGHLIGHT_COLORS = core.HIGHLIGHT_COLORS
-local SPIN_MENUS = core.SPIN_MENUS
-local HIGHLIGHT_STYLES = core.HIGHLIGHT_STYLES
-local getHighlightColor = core.getHighlightColor
-local colorName = core.colorName
-local isNoBackgroundStyle = core.isNoBackgroundStyle
-local truncateAuthorDisplay = core.truncateAuthorDisplay
-local NoteWrapper = core.NoteWrapper
-
+local _ = require("anv_i18n").gettext
 local sort = require("anv_sort")
 local text = require("anv_text")
 local atoms = require("anv_atoms")
 local item = require("anv_item")
-local sheet = require("anv_sheet")
 local exportmod = require("anv_export")
 local data = require("anv_data")
 local pages = require("anv_pages")
-local SortState = sort.SortState
-local SORT_COMPARATORS = sort.SORT_COMPARATORS
-local STYLE_NAMES = sort.STYLE_NAMES
-local sortModeLabel = sort.sortModeLabel
-local compareByPosition = sort.compareByPosition
-local normalizeBookTitle = sort.normalizeBookTitle
-local wrapText = text.wrapText
-local Pill = atoms.Pill
-local TapBox = atoms.TapBox
-local newHeaderButton = atoms.newHeaderButton
-local NoteItemWidget = item.NoteItemWidget
-local getLayoutSignature = item.getLayoutSignature
-local getNoteHeight = item.getNoteHeight
-local AnnotationSheet = sheet.AnnotationSheet
-local Export = exportmod.Export
-local normalizeColorStyle = data.normalizeColorStyle
-local colorStyleMatches = data.colorStyleMatches
-local FilterScreen = pages.FilterScreen
-local SS = pages.SS
-local ListPicker = pages.ListPicker
-local SortPicker = pages.SortPicker
-local Page = pages.Page
-local AllNotesViewer -- injected by main assembly
 
-local NotesListWidget = InputContainer:extend{
+local AllNotesViewer -- injected by main assembly
+List.NotesListWidget = InputContainer:extend{
     width = nil, height = nil, notes_list = nil, filtered_notes = nil,
     viewer = nil, current_page = 1, pages = nil, active_filter = nil,
-    single_book = false,
+    single_book = false, book_path = nil,
     covers_fullscreen = true,
 }
 -- Sizes that depend on the screen and on whether a filter row is shown.
-function NotesListWidget:computeLayout()
-    NoteItemWidget.list_single = self.single_book and true or false -- whose sort order decides the dates
+function List.NotesListWidget:computeLayout()
+    item.NoteItemWidget.list_single = self.single_book and true or false -- whose sort order decides the dates
     self.width = Screen:getWidth()
     self.height = Screen:getHeight()
     self.dimen = Geom:new{ w = self.width, h = self.height }
     local chips, chips_h = self:buildFilterChips(self.width)
     self.chips_height = chips_h
     self._layout_chips = { w = self.width, widget = chips } -- the header uses these (built once per page)
-    self.topbar_height = self.single_book and TOPBAR_BOOK_HEIGHT or TOPBAR_HEIGHT
-    self.title_height = self.topbar_height + TABS_HEIGHT + chips_h
-    local pag_style = getPaginationStyle()
+    self.topbar_height = self.single_book and core.TOPBAR_BOOK_HEIGHT or core.TOPBAR_HEIGHT
+    self.title_height = self.topbar_height + core.TABS_HEIGHT + chips_h
+    local pag_style = core.getPaginationStyle()
     -- scrollbar column: its left edge (sb_x) and the middle of the track
-    self.sb_x = self.width - SB_STRIP_WIDTH - SB_MARGIN_RIGHT
-    self.sb_track_center = self.sb_x + math.floor(SB_STRIP_WIDTH / 2)
-    if isScrollbarStyle(pag_style) then
+    self.sb_x = self.width - core.SB_STRIP_WIDTH - core.SB_MARGIN_RIGHT
+    self.sb_track_center = self.sb_x + math.floor(core.SB_STRIP_WIDTH / 2)
+    if core.isScrollbarStyle(pag_style) then
         -- both scrollbar styles draw their controls in the side strip, not in a bottom bar
         self.footer_height = 0
     else
-        self.footer_height = FOOTER_BAR_HEIGHT + Size.line.medium
+        self.footer_height = core.FOOTER_BAR_HEIGHT + Size.line.medium
     end
-    self.content_height = self.height - self.title_height - self.footer_height - getTopPadding()
+    self.content_height = self.height - self.title_height - self.footer_height - core.getTopPadding()
     self:setNoteColumn()
 end
 -- Width given to each annotation, and how far it is pushed right (landscape column). With a
 -- scrollbar style the column stops at the scrollbar, unless the list fits on one page (no_scrollbar,
 -- set by calculatePages): then there is no scrollbar and the annotations use the full width.
-function NotesListWidget:setNoteColumn()
+function List.NotesListWidget:setNoteColumn()
     local no_sb = self.no_scrollbar
-    local avail = NoteItemWidget.listAvail(self.width, no_sb)
-    self.note_width = NoteItemWidget.columnWidth(avail, self.width, self.height)
-    self.note_x_offset = math.floor((avail - self.note_width) / 2) + NoteItemWidget.scrollInset(no_sb)
+    local avail = item.NoteItemWidget.listAvail(self.width, no_sb)
+    self.note_width = item.NoteItemWidget.columnWidth(avail, self.width, self.height)
+    self.note_x_offset = math.floor((avail - self.note_width) / 2) + item.NoteItemWidget.scrollInset(no_sb)
 end
-function NotesListWidget:init()
-    NotesListWidget._current = self
+function List.NotesListWidget:init()
+    List.NotesListWidget._current = self
     self.width = Screen:getWidth()
     self.height = Screen:getHeight()
     self.dimen = Geom:new{ w = self.width, h = self.height }
@@ -216,15 +131,14 @@ function NotesListWidget:init()
     self.ges_events = {}
     
     self:updatePage()
-    self.initial_update = true
 end
 -- A search that was cleared leaves no "Exact Phrase" / "Case-Sensitive" behind: they would come
 -- back with the next search, and end up in saved filters.
-NotesListWidget.SEARCH_FIELDS = { "search_any", "search_highlight", "search_highlight_exclude", "search_note", "search_note_exclude" }
-function NotesListWidget.dropStaleSearchOptions(af)
+List.NotesListWidget.SEARCH_FIELDS = { "search_any", "search_highlight", "search_highlight_exclude", "search_note", "search_note_exclude" }
+function List.NotesListWidget.dropStaleSearchOptions(af)
     if type(af) ~= "table" then return end
-    for i = 1, #NotesListWidget.SEARCH_FIELDS do
-        local k = NotesListWidget.SEARCH_FIELDS[i]
+    for i = 1, #List.NotesListWidget.SEARCH_FIELDS do
+        local k = List.NotesListWidget.SEARCH_FIELDS[i]
         if af[k] == nil or af[k] == "" then
             af[k], af[k .. "_mode"], af[k .. "_case"] = nil, nil, nil
         end
@@ -233,8 +147,8 @@ end
 -- Filters on the book's metadata: authors, series and language. Each has an "only these" key and
 -- a "hide these" key (kind .. "_exclude"), as books and tags. A book without a value counts as ""
 -- (shown as "None").
-NotesListWidget.META_KINDS = { "authors", "series", "languages" }
-function NotesListWidget.metaValues(note, kind)
+List.NotesListWidget.META_KINDS = { "authors", "series", "languages" }
+function List.NotesListWidget.metaValues(note, kind)
     if kind == "authors" then
         local out = {}
         local a = note.book_authors
@@ -251,15 +165,15 @@ function NotesListWidget.metaValues(note, kind)
     if kind == "series" then v = note.book_series else v = note.book_language end
     return { type(v) == "string" and v or "" }
 end
-function NotesListWidget.metaLabel(v) return v == "" and _("None") or v end
+function List.NotesListWidget.metaLabel(v) return v == "" and _("None") or v end
 -- whether a note passes the author / series / language filters
-function NotesListWidget.metaMatches(af, note)
-    for i = 1, #NotesListWidget.META_KINDS do
-        local kind = NotesListWidget.META_KINDS[i]
+function List.NotesListWidget.metaMatches(af, note)
+    for i = 1, #List.NotesListWidget.META_KINDS do
+        local kind = List.NotesListWidget.META_KINDS[i]
         local inc, exc = af[kind], af[kind .. "_exclude"]
         local has_inc, has_exc = type(inc) == "table" and next(inc) ~= nil, type(exc) == "table" and next(exc) ~= nil
         if has_inc or has_exc then
-            local vals, any = NotesListWidget.metaValues(note, kind), false
+            local vals, any = List.NotesListWidget.metaValues(note, kind), false
             for k = 1, #vals do
                 if has_exc and exc[vals[k]] then return false end
                 if has_inc and inc[vals[k]] then any = true end
@@ -271,14 +185,14 @@ function NotesListWidget.metaMatches(af, note)
 end
 -- The chapter filter names chapters of the books chosen when it was set ("Chapter 1" of book A):
 -- with other books it would pick their chapters of that name, so it goes when the books change.
-function NotesListWidget.booksChanged(af)
+function List.NotesListWidget.booksChanged(af)
     if type(af) ~= "table" then return end
     af.chapters, af.chapters_exclude = nil, nil
 end
-function NotesListWidget:applyFilter()
+function List.NotesListWidget:applyFilter()
     local function textMatches(raw, query, mode, case_sensitive)
-        local text = case_sensitive and raw or NoteItemWidget.lower(raw)
-        local q    = case_sensitive and query or NoteItemWidget.lower(query)
+        local text = case_sensitive and raw or item.NoteItemWidget.lower(raw)
+        local q    = case_sensitive and query or item.NoteItemWidget.lower(query)
         if mode == "phrase" then
             return text:find(q, 1, true) ~= nil
         elseif mode == "any" then
@@ -293,10 +207,10 @@ function NotesListWidget:applyFilter()
             return true
         end
     end
-    normalizeColorStyle(self.active_filter)
-    NotesListWidget.dropStaleSearchOptions(self.active_filter)
+    data.normalizeColorStyle(self.active_filter)
+    List.NotesListWidget.dropStaleSearchOptions(self.active_filter)
     -- the lowered texts are kept between searches; a very large library starts afresh now and then
-    if NoteItemWidget._lower_n > 100000 then NoteItemWidget._lower, NoteItemWidget._lower_n = {}, 0 end
+    if item.NoteItemWidget._lower_n > 100000 then item.NoteItemWidget._lower, item.NoteItemWidget._lower_n = {}, 0 end
     self.filtered_notes = {}
     -- counts: what each tab shows with the filters; totals: what it would show without them
     local counts = { all = 0, highlights = 0, notes = 0, bookmarks = 0 }
@@ -314,10 +228,10 @@ function NotesListWidget:applyFilter()
                 if af.books_exclude[note.book_title] then match = false end
             end
             -- Authors, series, language
-            if match then match = NotesListWidget.metaMatches(af, note) end
+            if match then match = List.NotesListWidget.metaMatches(af, note) end
             -- Tags include / exclude
             if match and af.tags and next(af.tags) then
-                local nw = NoteWrapper:new(note)
+                local nw = core.NoteWrapper:new(note)
                 local found = false
                 for _, tag in ipairs(nw:getTags()) do
                     if af.tags[tag] then found = true; break end
@@ -325,7 +239,7 @@ function NotesListWidget:applyFilter()
                 match = found
             end
             if match and af.tags_exclude and next(af.tags_exclude) then
-                local nw = NoteWrapper:new(note)
+                local nw = core.NoteWrapper:new(note)
                 for _, tag in ipairs(nw:getTags()) do
                     if af.tags_exclude[tag] then match = false; break end
                 end
@@ -339,7 +253,7 @@ function NotesListWidget:applyFilter()
             end
             -- Colour / style (bookmarks have neither, so these don't apply to them)
             if match and af.cs and next(af.cs) and not is_bm then
-                match = colorStyleMatches(af, note)
+                match = data.colorStyleMatches(af, note)
             end
             -- Highlight text include / exclude (bookmarks have no highlighted text)
             if match and af.search_highlight and af.search_highlight ~= "" and not is_bm then
@@ -397,28 +311,28 @@ function NotesListWidget:applyFilter()
 end
 -- The Bookmarks tab keeps its own order: when the list moves onto or off that tab, the order of
 -- that tab is used (and the list sorted again when it differs).
-function NotesListWidget:syncSortTab()
+function List.NotesListWidget:syncSortTab()
     local bm = self:tabKey() == "bookmarks"
-    if (SortState.bm_tab or false) == bm then return end
-    local before = SortState.get(self.single_book)
-    SortState.bm_tab = bm
-    if SortState.get(self.single_book) ~= before then self:applySort() end
+    if (sort.SortState.bm_tab or false) == bm then return end
+    local before = sort.SortState.get(self.single_book)
+    sort.SortState.bm_tab = bm
+    if sort.SortState.get(self.single_book) ~= before then self:applySort() end
 end
 -- Key of the open tab in tab_counts / tab_totals.
-function NotesListWidget:tabKey()
+function List.NotesListWidget:tabKey()
     local presence = self.active_filter and self.active_filter.notes_presence
     return ({ only = "notes", exclude = "highlights", bookmarks = "bookmarks" })[presence or ""] or "all"
 end
 -- Scrollbar marks follow the sort order: a mark where the group changes. Books (or authors) when
 -- sorted by book / author / file, months when sorted by date, chapters in one book sorted by location.
 -- levels: the parsed order (paginate passes it, so it isn't parsed again for every annotation)
-function NotesListWidget.markKey(note, single, levels)
-    levels = levels or SortState.view(SortState.get(single), single) -- the order the list really has
+function List.NotesListWidget.markKey(note, single, levels)
+    levels = levels or sort.SortState.view(sort.SortState.get(single), single) -- the order the list really has
     local by = levels[1].key
     if single then
-        for _, l in ipairs(levels) do
-            if l.key == "pos" or l.key == "chapter" then return note.chapter or "" end
-        end
+        -- marks follow the primary grouping: chapters only when the list itself is ordered by
+        -- position; a secondary pos/chapter (e.g. date, then place) must not override the date
+        if by == "pos" or by == "chapter" then return note.chapter or "" end
         return (note.datetime or ""):sub(1, 7)
     end
     if by == "date" then return (note.datetime or ""):sub(1, 7) end
@@ -428,8 +342,8 @@ end
 -- Splits the list into pages. With a scrollbar style it first measures at the width beside the
 -- scrollbar; when everything fits on one page there is no scrollbar, so it measures again at the
 -- full width (wider annotations are never taller, so it still fits on one page).
-function NotesListWidget:calculatePages()
-    local sb = isScrollbarStyle()
+function List.NotesListWidget:calculatePages()
+    local sb = core.isScrollbarStyle()
     if sb and self.no_scrollbar then self.no_scrollbar = nil; self:setNoteColumn() end
     self:paginate()
     if sb and self.total_pages <= 1 then
@@ -443,9 +357,9 @@ function NotesListWidget:calculatePages()
         end
     end
 end
-function NotesListWidget:paginate()
+function List.NotesListWidget:paginate()
     self.pages = {}
-    local mark_levels = SortState.view(SortState.get(self.single_book), self.single_book)
+    local mark_levels = sort.SortState.view(sort.SortState.get(self.single_book), self.single_book)
     local current_page_notes, current_height = {}, 0
     
     local available_content_height = self.content_height
@@ -456,24 +370,26 @@ function NotesListWidget:paginate()
     
     local dedup_prev_title = nil
     local dedup_prev_info_key = nil
-    local dedup_fields = getDedupInfoFields()
+    local dedup_fields = core.getDedupInfoFields()
     local note_width = self.note_width
     -- pages on which a new group starts (book, author, month or chapter, by sort order), for the scrollbar marks
     self.book_start_pages = {}
     local prev_mark_key
-    NoteItemWidget.measure_hide_chapter = (self.single_book and NoteItemWidget.showHeadings()) and true or false
-    local layout_sig = getLayoutSignature(note_width)
+    item.NoteItemWidget.measure_hide_chapter = (self.single_book and item.NoteItemWidget.showHeadings()) and true or false
+    local layout_sig = item.getLayoutSignature(note_width)
     local prev_chapter = nil
     for i, note in ipairs(self.filtered_notes) do
         local is_first_on_page = (#current_page_notes == 0)
-        local skip_title, skip_info = getHeaderSkips(note, is_first_on_page, dedup_prev_title, dedup_prev_info_key, dedup_fields)
+        local skip_title, skip_info = core.getHeaderSkips(note, is_first_on_page, dedup_prev_title, dedup_prev_info_key, dedup_fields)
         if self.single_book then skip_title = true end
-        local item_height = getNoteHeight(note, note_width, skip_title, skip_info, layout_sig)
-        local has_ch = self.single_book and NoteItemWidget.showHeadings() and note.chapter and note.chapter ~= ""
-        if has_ch and ((is_first_on_page and NoteItemWidget.repeatChapter()) or note.chapter ~= prev_chapter) then item_height = item_height + NoteItemWidget.headingHeight(note.chapter, note_width) end
+        local item_height = item.getNoteHeight(note, note_width, skip_title, skip_info, layout_sig)
+        local has_ch = self.single_book and item.NoteItemWidget.showHeadings() and note.chapter and note.chapter ~= ""
+        if has_ch and ((is_first_on_page and item.NoteItemWidget.repeatChapter()) or note.chapter ~= prev_chapter) then
+            item_height = item_height + item.NoteItemWidget.headingHeight(note.chapter, note_width)
+        end
         local spacing = 0
         if not is_first_on_page then
-            spacing = NoteItemWidget.gapAbove(note, skip_title)
+            spacing = item.NoteItemWidget.gapAbove(note, skip_title)
         end
         local next_height = current_height + spacing + item_height
         if next_height <= effective_content_height then
@@ -483,21 +399,22 @@ function NotesListWidget:paginate()
             if #current_page_notes > 0 then table.insert(self.pages, current_page_notes) end
             -- Re-measure as first on the new page: the repeat options may bring headers back
             current_page_notes = {i}
-            local st, si = getHeaderSkips(note, true, dedup_prev_title, dedup_prev_info_key, dedup_fields)
+            local st, si = core.getHeaderSkips(note, true, dedup_prev_title, dedup_prev_info_key, dedup_fields)
             if self.single_book then st = true end
             -- as updatePage draws it: the heading at the top of a page only when the chapter
             -- changes here, or when it is repeated on each page
-            local heading = has_ch and (NoteItemWidget.repeatChapter() or note.chapter ~= prev_chapter)
-            current_height = getNoteHeight(note, note_width, st, si, layout_sig) + (heading and NoteItemWidget.headingHeight(note.chapter, note_width) or 0)
+            local heading = has_ch and (item.NoteItemWidget.repeatChapter() or note.chapter ~= prev_chapter)
+            current_height = item.getNoteHeight(note, note_width, st, si, layout_sig)
+                + (heading and item.NoteItemWidget.headingHeight(note.chapter, note_width) or 0)
         end
         prev_chapter = note.chapter
-        local mark_key = NotesListWidget.markKey(note, self.single_book, mark_levels)
+        local mark_key = List.NotesListWidget.markKey(note, self.single_book, mark_levels)
         if i > 1 and mark_key ~= prev_mark_key then
             self.book_start_pages[#self.pages + 1] = true
         end
         prev_mark_key = mark_key
         dedup_prev_title = note.book_title
-        dedup_prev_info_key = getNoteInfoKey(note, dedup_fields)
+        dedup_prev_info_key = core.getNoteInfoKey(note, dedup_fields)
     end
     if #current_page_notes > 0 then table.insert(self.pages, current_page_notes) end
     if #self.pages == 0 then self.pages = {{}} end
@@ -506,27 +423,28 @@ end
 -- The Prev / Next bar: "|‹ ‹ Prev" left, the label ("1 / 4") in the middle, "Next › ›|" right.
 -- Holding Prev / Next jumps to the first / last. Used under the list, on paged menu pages and in
 -- the bookmark sheet. o = { width, label, has_prev, has_next, first, prev, next, last, side }
-function NotesListWidget.navBar(o)
+function List.NotesListWidget.navBar(o)
     local cl, cr, cf, clast = "chevron.left", "chevron.right", "chevron.first", "chevron.last"
     if BD.mirroredUILayout() then cl, cr, cf, clast = cr, cl, clast, cf end
     local face = Font:getFace("cfont", 13)
     local icon = Screen:scaleBySize(20)
     local function pageButton(text, icon_name, icon_first, enabled, cb, hold_cb)
-        local tw = TextWidget:new{ text = text, face = face, bold = enabled, fgcolor = enabled and COLORS.ink or COLORS.disabled }
+        local tw = TextWidget:new{ text = text, face = face, bold = enabled, fgcolor = enabled and core.COLORS.ink or core.COLORS.disabled }
         local iw = IconWidget:new{ icon = icon_name, width = icon, height = icon, dim = not enabled }
         local row = icon_first and HorizontalGroup:new{ align = "center", iw, HorizontalSpan:new{ width = Screen:scaleBySize(4) }, tw }
             or HorizontalGroup:new{ align = "center", tw, HorizontalSpan:new{ width = Screen:scaleBySize(4) }, iw }
-        return TapBox:new{ CenterContainer:new{ dimen = Geom:new{ w = row:getSize().w + Screen:scaleBySize(20), h = FOOTER_BAR_HEIGHT }, row },
+        return atoms.TapBox:new{ CenterContainer:new{ dimen = Geom:new{
+            w = row:getSize().w + Screen:scaleBySize(20), h = core.FOOTER_BAR_HEIGHT }, row },
             callback = function() if enabled then cb() end end,
             hold_callback = function() if enabled then hold_cb() end end }
     end
     -- first / last: icon only, next to Prev / Next
     local function jumpButton(icon_name, enabled, cb)
         local iw = IconWidget:new{ icon = icon_name, width = icon, height = icon, dim = not enabled }
-        return TapBox:new{ CenterContainer:new{ dimen = Geom:new{ w = icon + Screen:scaleBySize(20), h = FOOTER_BAR_HEIGHT }, iw },
+        return atoms.TapBox:new{ CenterContainer:new{ dimen = Geom:new{ w = icon + Screen:scaleBySize(20), h = core.FOOTER_BAR_HEIGHT }, iw },
             callback = function() if enabled then cb() end end }
     end
-    local bd = Geom:new{ w = o.width, h = FOOTER_BAR_HEIGHT }
+    local bd = Geom:new{ w = o.width, h = core.FOOTER_BAR_HEIGHT }
     local side = o.side or 0
     return OverlapGroup:new{ dimen = bd, allow_mirroring = false,
         LeftContainer:new{ dimen = bd, HorizontalGroup:new{ HorizontalSpan:new{ width = side },
@@ -540,17 +458,17 @@ function NotesListWidget.navBar(o)
 end
 -- The scrollbar strip on the right of the list: one class, made once; each page turn makes an
 -- instance with that page's numbers (strip_x, track_h, marks, ...).
-NotesListWidget.ScrollStrip = InputContainer:extend{}
-function NotesListWidget.ScrollStrip:init()
+List.NotesListWidget.ScrollStrip = InputContainer:extend{}
+function List.NotesListWidget.ScrollStrip:init()
     self.dimen = Geom:new{ x = self.strip_x, y = self.strip_y, w = self.strip_w, h = self.strip_h }
     self.ges_events = { TapStrip = { GestureRange:new{ ges = "tap",
-        range = Geom:new{ x = self.strip_x, y = self.strip_y, w = self.strip_w + SB_MARGIN_RIGHT, h = self.strip_h } } } }
+        range = Geom:new{ x = self.strip_x, y = self.strip_y, w = self.strip_w + core.SB_MARGIN_RIGHT, h = self.strip_h } } } }
 end
-function NotesListWidget.ScrollStrip:getSize() return Geom:new{ w = self.strip_w, h = self.strip_h } end
-function NotesListWidget.ScrollStrip:pageY(p) -- top of the thumb when page p is shown
+function List.NotesListWidget.ScrollStrip:getSize() return Geom:new{ w = self.strip_w, h = self.strip_h } end
+function List.NotesListWidget.ScrollStrip:pageY(p) -- top of the thumb when page p is shown
     return math.floor((p - 1) / (self.total - 1) * self.travel + 0.5)
 end
-function NotesListWidget.ScrollStrip:onTapStrip(_, ges)
+function List.NotesListWidget.ScrollStrip:onTapStrip(_, ges)
     if not ges or not ges.pos then return end
     local list, btn_h, track_y, track_h = self.list, self.btn_h, self.track_y, self.track_h
     local y = ges.pos.y - self.strip_y
@@ -568,57 +486,57 @@ function NotesListWidget.ScrollStrip:onTapStrip(_, ges)
     end
     return true
 end
-function NotesListWidget.ScrollStrip:paintTo(bb, x, y)
+function List.NotesListWidget.ScrollStrip:paintTo(bb, x, y)
     local strip_w, icon_size, track_h, thumb_h = self.strip_w, self.icon_size, self.track_h, self.thumb_h
     -- thumb and track positions exactly as before the redesign
-    local thumb_x = x + math.floor((strip_w - SB_THUMB_WIDTH) / 2)
-    local track_x = thumb_x + math.floor((SB_THUMB_WIDTH - SB_TRACK_WIDTH) / 2)
+    local thumb_x = x + math.floor((strip_w - core.SB_THUMB_WIDTH) / 2)
+    local track_x = thumb_x + math.floor((core.SB_THUMB_WIDTH - core.SB_TRACK_WIDTH) / 2)
     local icon_x = x + math.floor((strip_w - icon_size) / 2)
     if self.up_icon then self.up_icon:paintTo(bb, icon_x, y) end
     local ty = y + self.track_y
     -- a very small screen or big chevrons: no room for the thumb, so no track either
     local room = track_h >= thumb_h
-    if room then bb:paintRect(track_x, ty, SB_TRACK_WIDTH, track_h, COLORS.ink) end
+    if room then bb:paintRect(track_x, ty, core.SB_TRACK_WIDTH, track_h, core.COLORS.ink) end
     -- same overhang on both sides of the track, so the notch is centred on it
-    local mark_x = track_x - SB_MARK_OVERHANG
-    local mark_w = SB_TRACK_WIDTH + SB_MARK_OVERHANG * 2
+    local mark_x = track_x - core.SB_MARK_OVERHANG
+    local mark_w = core.SB_TRACK_WIDTH + core.SB_MARK_OVERHANG * 2
     local marks = room and self.marks or {}
     for i = 1, #marks do
         local p = marks[i]
         if p > 1 then -- the top of the track already marks page 1
-            bb:paintRect(mark_x, ty + self:pageY(p) + math.floor(thumb_h / 2), mark_w, SB_MARK_HEIGHT, COLORS.ink)
+            bb:paintRect(mark_x, ty + self:pageY(p) + math.floor(thumb_h / 2), mark_w, core.SB_MARK_HEIGHT, core.COLORS.ink)
         end
     end
     if room then
         local thumb_y = ty + self:pageY(self.list.current_page)
-        local radius = math.floor(SB_THUMB_WIDTH / 2)
-        bb:paintRoundedRect(thumb_x, thumb_y, SB_THUMB_WIDTH, thumb_h, BlitBuffer.COLOR_WHITE, radius)
+        local radius = math.floor(core.SB_THUMB_WIDTH / 2)
+        bb:paintRoundedRect(thumb_x, thumb_y, core.SB_THUMB_WIDTH, thumb_h, BlitBuffer.COLOR_WHITE, radius)
         -- Size.border.default = 1px at 160dpi, scaled up on denser screens like the thumb itself
-        bb:paintBorder(thumb_x, thumb_y, SB_THUMB_WIDTH, thumb_h, Size.border.default, BlitBuffer.COLOR_BLACK, radius)
+        bb:paintBorder(thumb_x, thumb_y, core.SB_THUMB_WIDTH, thumb_h, Size.border.default, BlitBuffer.COLOR_BLACK, radius)
     end
     local lw = self.page_label:getSize().w
     self.page_label:paintTo(bb, track_x - math.floor(lw / 2), ty + track_h + Screen:scaleBySize(6))
     if self.dn_icon then self.dn_icon:paintTo(bb, icon_x, y + self.strip_h - icon_size) end
 end
-function NotesListWidget:createFooter()
-    local style = getPaginationStyle()
+function List.NotesListWidget:createFooter()
+    local style = core.getPaginationStyle()
 
-    if isScrollbarStyle(style) then
+    if core.isScrollbarStyle(style) then
         -- Slim scrollbar in a strip on the right: outline thumb, page number underneath,
         -- marks where books start; "Scrollbar + Buttons" adds up/down arrows at the ends.
         if self.total_pages <= 1 then return VerticalGroup:new{} end
         local self_ref = self
         local has_chevrons = (style == "scrollbar_chevrons")
-        local strip_w = SB_STRIP_WIDTH
+        local strip_w = core.SB_STRIP_WIDTH
         local strip_x = self.sb_x
-        local strip_y = self.title_height + SB_MARGIN_V_TOP
-        local strip_h = self.height - strip_y - SB_MARGIN_V_BOTTOM
+        local strip_y = self.title_height + core.SB_MARGIN_V_TOP
+        local strip_h = self.height - strip_y - core.SB_MARGIN_V_BOTTOM
         local btn_h = has_chevrons and strip_w or 0 -- square arrow buttons, as before
         local page_label = TextWidget:new{
             text = string.format("%d/%d", self.current_page, self.total_pages),
             face = Font:getFace("cfont", 12), bold = true,
-            fgcolor = COLORS.muted,
-            max_width = strip_w + SB_MARGIN_RIGHT,
+            fgcolor = core.COLORS.muted,
+            max_width = strip_w + core.SB_MARGIN_RIGHT,
         }
         local label_h = page_label:getSize().h + Screen:scaleBySize(6)
         local track_y = btn_h                         -- relative to strip_y
@@ -635,10 +553,10 @@ function NotesListWidget:createFooter()
             dn_icon = IconWidget:new{ icon = "chevron.up", rotation_angle = 180, width = icon_size, height = icon_size, dim = not dn_enabled }
         end
         local marks = {}
-        if getScrollbarBookMarks() then
+        if core.getScrollbarBookMarks() then
             for p in pairs(self.book_start_pages or {}) do table.insert(marks, p) end
         end
-        local strip = NotesListWidget.ScrollStrip:new{ list = self_ref, strip_x = strip_x, strip_y = strip_y,
+        local strip = List.NotesListWidget.ScrollStrip:new{ list = self_ref, strip_x = strip_x, strip_y = strip_y,
             strip_w = strip_w, strip_h = strip_h, btn_h = btn_h, has_chevrons = has_chevrons, up_enabled = up_enabled,
             dn_enabled = dn_enabled, track_y = track_y, track_h = track_h, total = total, thumb_h = thumb_h,
             travel = travel, icon_size = icon_size, up_icon = up_icon, dn_icon = dn_icon, marks = marks, page_label = page_label }
@@ -652,7 +570,7 @@ function NotesListWidget:createFooter()
         -- also jumps to the first / last page).
         local function goFirst() self.current_page = 1; self:updatePage() end
         local function goLast() self.current_page = self.total_pages; self:updatePage() end
-        local bar = NotesListWidget.navBar{
+        local bar = List.NotesListWidget.navBar{
             width = self.width, label = string.format("%d / %d", self.current_page, self.total_pages),
             has_prev = self.current_page > 1, has_next = self.current_page < self.total_pages,
             first = goFirst, prev = function() self:onGotoPrevPage() end,
@@ -665,7 +583,7 @@ function NotesListWidget:createFooter()
                 width = self.width, padding = 0, margin = 0, bordersize = 0,
                 background = BlitBuffer.COLOR_WHITE,
                 VerticalGroup:new{
-                    LineWidget:new{ dimen = Geom:new{ w = self.width, h = Size.line.medium }, background = COLORS.line },
+                    LineWidget:new{ dimen = Geom:new{ w = self.width, h = Size.line.medium }, background = core.COLORS.line },
                     bar,
                 },
             },
@@ -673,21 +591,21 @@ function NotesListWidget:createFooter()
     end
 end
 -- Label for the sort button in the tab row, e.g. "Newest first" or "Book · A to Z (by Date)".
-local function colorName(key) return NoteItemWidget.colorLabel(key) end
+function List.colorName(key) return item.NoteItemWidget.colorLabel(key) end
 -- full: every name (sorted), for the filter line of an export; otherwise "3 books" when there are several
-local function setLabel(set, many, full)
+function List.setLabel(set, many, full)
     local keys = {}
     for k in pairs(set) do table.insert(keys, k) end
     if #keys == 1 then return keys[1] end
     if full then table.sort(keys); return table.concat(keys, ", ") end
     return string.format(many, #keys)
 end
-local CHIP_HEIGHT = Screen:scaleBySize(32)
-local CHIP_GAP = Screen:scaleBySize(8)
+List.CHIP_HEIGHT = Screen:scaleBySize(32)
+List.CHIP_GAP = Screen:scaleBySize(8)
 local CHIPS_PAD_TOP, CHIPS_PAD_BOTTOM = Screen:scaleBySize(6), Screen:scaleBySize(6)
 
 -- full: chips name every book, chapter and tag (the export's filter line)
-function NotesListWidget:getFilterChips(full)
+function List.NotesListWidget:getFilterChips(full)
     local af = self.active_filter or {}
     local chips = {}
     -- prefix: shown before the colour dot ("Hide ● Yellow")
@@ -695,7 +613,7 @@ function NotesListWidget:getFilterChips(full)
         table.insert(chips, { label = label, clear = clear, colors = colors, prefix = prefix })
     end
     local function quoted(t) return "“" .. t .. "”" end
-    normalizeColorStyle(af)
+    data.normalizeColorStyle(af)
     if af.cs and next(af.cs) then
         local keys = {}
         for k in pairs(af.cs) do table.insert(keys, k) end
@@ -705,40 +623,42 @@ function NotesListWidget:getFilterChips(full)
             local t, v = k:match("^(%a+):(.+)$")
             local function clear() af.cs[k] = nil; if not next(af.cs) then af.cs, af.cs_exclude = nil, nil end end
             if t == "color" then
-                add(colorName(v), clear, { v }, prefix)
+                add(List.colorName(v), clear, { v }, prefix)
             else
-                add((prefix and (prefix .. " ") or "") .. (STYLE_NAMES[v] or v), clear)
+                add((prefix and (prefix .. " ") or "") .. (sort.STYLE_NAMES[v] or v), clear)
             end
         end
     end
-    if af.books and next(af.books) then add(setLabel(af.books, _("%d books"), full), function() af.books = nil; NotesListWidget.booksChanged(af) end) end
+    if af.books and next(af.books) then add(List.setLabel(af.books, _("%d books"), full),
+            function() af.books = nil; List.NotesListWidget.booksChanged(af) end) end
     if af.books_exclude and next(af.books_exclude) then
-        add(_("Hide") .. " " .. setLabel(af.books_exclude, _("%d books"), full), function() af.books_exclude = nil; NotesListWidget.booksChanged(af) end)
+        add(_("Hide") .. " " .. List.setLabel(af.books_exclude, _("%d books"), full),
+            function() af.books_exclude = nil; List.NotesListWidget.booksChanged(af) end)
     end
     do
         local many = { authors = _("%d authors"), series = _("%d series"), languages = _("%d languages") }
-        for i = 1, #NotesListWidget.META_KINDS do
-            local kind = NotesListWidget.META_KINDS[i]
+        for i = 1, #List.NotesListWidget.META_KINDS do
+            local kind = List.NotesListWidget.META_KINDS[i]
             local pair = { kind, kind .. "_exclude" }
             for pi = 1, 2 do
                 local k = pair[pi]
                 if type(af[k]) == "table" and next(af[k]) then
                     local named = {} -- "" is "None"
-                    for v in pairs(af[k]) do named[NotesListWidget.metaLabel(v)] = true end
-                    local label = setLabel(named, many[kind], full)
+                    for v in pairs(af[k]) do named[List.NotesListWidget.metaLabel(v)] = true end
+                    local label = List.setLabel(named, many[kind], full)
                     if k ~= kind then label = _("Hide") .. " " .. label end
                     add(label, function() af[k] = nil end)
                 end
             end
         end
     end
-    if af.chapters and next(af.chapters) then add(setLabel(af.chapters, _("%d chapters"), full), function() af.chapters = nil end) end
+    if af.chapters and next(af.chapters) then add(List.setLabel(af.chapters, _("%d chapters"), full), function() af.chapters = nil end) end
     if af.chapters_exclude and next(af.chapters_exclude) then
-        add(_("Hide") .. " " .. setLabel(af.chapters_exclude, _("%d chapters"), full), function() af.chapters_exclude = nil end)
+        add(_("Hide") .. " " .. List.setLabel(af.chapters_exclude, _("%d chapters"), full), function() af.chapters_exclude = nil end)
     end
-    if af.tags and next(af.tags) then add(setLabel(af.tags, _("%d tags"), full), function() af.tags = nil end) end
+    if af.tags and next(af.tags) then add(List.setLabel(af.tags, _("%d tags"), full), function() af.tags = nil end) end
     if af.tags_exclude and next(af.tags_exclude) then
-        add(_("Hide") .. " " .. setLabel(af.tags_exclude, _("%d tags"), full), function() af.tags_exclude = nil end)
+        add(_("Hide") .. " " .. List.setLabel(af.tags_exclude, _("%d tags"), full), function() af.tags_exclude = nil end)
     end
     if af.search_any and af.search_any ~= "" then add(quoted(af.search_any), function() af.search_any = nil end) end
     if af.search_highlight and af.search_highlight ~= "" then
@@ -757,7 +677,7 @@ function NotesListWidget:getFilterChips(full)
 end
 
 -- Builds the chips area for width w. Returns the widget (nil when no filters) and its height.
-function NotesListWidget:buildFilterChips(w)
+function List.NotesListWidget:buildFilterChips(w)
     local chips = self:getFilterChips()
     if #chips == 0 then return nil, 0 end
     local side = Screen:scaleBySize(24)
@@ -774,8 +694,8 @@ function NotesListWidget:buildFilterChips(w)
         end
         if c.colors then
             for _j, key in ipairs(c.colors) do
-                table.insert(content, Pill:new{ width = Screen:scaleBySize(10), height = Screen:scaleBySize(10), border = 0, true_color = true,
-                    fill = key == "gray" and BlitBuffer.COLOR_GRAY or getHighlightColor(key) })
+                table.insert(content, atoms.Pill:new{ width = Screen:scaleBySize(10), height = Screen:scaleBySize(10), border = 0, true_color = true,
+                    fill = key == "gray" and BlitBuffer.COLOR_GRAY or core.getHighlightColor(key) })
                 table.insert(content, HorizontalSpan:new{ width = Screen:scaleBySize(6) })
             end
         end
@@ -783,10 +703,10 @@ function NotesListWidget:buildFilterChips(w)
             max_width = math.floor(avail * 0.6) })
         table.insert(content, HorizontalSpan:new{ width = Screen:scaleBySize(4) })
         -- a white ✕ on the black chip: the font character, centred (the icon showed as a white square on e-ink)
-        table.insert(content, NoteItemWidget.TextMark:new{ icon = "close", size = Screen:scaleBySize(14) })
+        table.insert(content, item.NoteItemWidget.TextMark:new{ icon = "close", size = Screen:scaleBySize(14) })
         local chip_w = content:getSize().w + Screen:scaleBySize(20)
-        table.insert(items, { w = chip_w, widget = TapBox:new{
-            Pill:new{ width = chip_w, height = CHIP_HEIGHT, fill = BlitBuffer.COLOR_BLACK, border = 0, content },
+        table.insert(items, { w = chip_w, widget = atoms.TapBox:new{
+            atoms.Pill:new{ width = chip_w, height = List.CHIP_HEIGHT, fill = BlitBuffer.COLOR_BLACK, border = 0, content },
             callback = function()
                 c.clear()
                 self.current_page = 1
@@ -797,8 +717,8 @@ function NotesListWidget:buildFilterChips(w)
     local clear = TextWidget:new{ text = _("Clear all"), face = face }
     local clear_sz = clear:getSize()
     local clear_w = clear_sz.w + Screen:scaleBySize(16)
-    table.insert(items, { w = clear_w, widget = TapBox:new{
-        CenterContainer:new{ dimen = Geom:new{ w = clear_w, h = CHIP_HEIGHT }, VerticalGroup:new{ clear,
+    table.insert(items, { w = clear_w, widget = atoms.TapBox:new{
+        CenterContainer:new{ dimen = Geom:new{ w = clear_w, h = List.CHIP_HEIGHT }, VerticalGroup:new{ clear,
             LineWidget:new{ dimen = Geom:new{ w = clear_sz.w, h = Size.line.medium }, background = BlitBuffer.COLOR_BLACK } } },
         callback = function() self:clearFilters() end,
     } })
@@ -807,24 +727,24 @@ function NotesListWidget:buildFilterChips(w)
     local row, row_w, limit = HorizontalGroup:new{ align = "center" }, 0, avail - count_w
     local n_rows = 1
     for _i, it in ipairs(items) do
-        if row_w > 0 and row_w + CHIP_GAP + it.w > limit then
+        if row_w > 0 and row_w + List.CHIP_GAP + it.w > limit then
             table.insert(rows, row)
-            table.insert(rows, VerticalSpan:new{ width = CHIP_GAP })
+            table.insert(rows, VerticalSpan:new{ width = List.CHIP_GAP })
             row, row_w, limit = HorizontalGroup:new{ align = "center" }, 0, avail
             n_rows = n_rows + 1
         end
-        if row_w > 0 then table.insert(row, HorizontalSpan:new{ width = CHIP_GAP }); row_w = row_w + CHIP_GAP end
+        if row_w > 0 then table.insert(row, HorizontalSpan:new{ width = List.CHIP_GAP }); row_w = row_w + List.CHIP_GAP end
         table.insert(row, it.widget)
         row_w = row_w + it.w
     end
     table.insert(rows, row)
-    local h = CHIPS_PAD_TOP + n_rows * CHIP_HEIGHT + (n_rows - 1) * CHIP_GAP + CHIPS_PAD_BOTTOM + Size.line.thin
+    local h = CHIPS_PAD_TOP + n_rows * List.CHIP_HEIGHT + (n_rows - 1) * List.CHIP_GAP + CHIPS_PAD_BOTTOM + Size.line.thin
     local count = TextWidget:new{
         text = string.format(_("%d of %d"), #(self.filtered_notes or {}),
             self.tab_totals and self.tab_totals[self:tabKey()] or #(self.notes_list or {})),
-        face = small, fgcolor = COLORS.muted,
+        face = small, fgcolor = core.COLORS.muted,
     }
-    local first_row = Geom:new{ w = avail, h = CHIP_HEIGHT }
+    local first_row = Geom:new{ w = avail, h = List.CHIP_HEIGHT }
     local area = VerticalGroup:new{ align = "left",
         VerticalSpan:new{ width = CHIPS_PAD_TOP },
         HorizontalGroup:new{ HorizontalSpan:new{ width = side },
@@ -835,31 +755,31 @@ function NotesListWidget:buildFilterChips(w)
         },
         VerticalSpan:new{ width = CHIPS_PAD_BOTTOM },
         HorizontalGroup:new{ HorizontalSpan:new{ width = side },
-            LineWidget:new{ dimen = Geom:new{ w = avail, h = Size.line.thin }, background = COLORS.line } },
+            LineWidget:new{ dimen = Geom:new{ w = avail, h = Size.line.thin }, background = core.COLORS.line } },
     }
     return area, h
 end
 
 -- Top bar, tab row and (when filters are on) the active-filter row. Height is self.title_height.
-function NotesListWidget:buildHeader()
+function List.NotesListWidget:buildHeader()
     local w = self.width
     local side = Screen:scaleBySize(8)
-    local h_pad = getHMargin() + Size.padding.default
+    local h_pad = core.getHMargin() + Size.padding.default
     if h_pad > Screen:scaleBySize(24) then h_pad = Screen:scaleBySize(24) end
     local header = VerticalGroup:new{ align = "left" }
 
     -- 1. top bar
     local title
-    local bar_h = self.topbar_height or TOPBAR_HEIGHT
+    local bar_h = self.topbar_height or core.TOPBAR_HEIGHT
     if self.single_book then
         -- one book: its title, and the author underneath (no counts: the tabs show those)
         local first = self.notes_list and self.notes_list[1] or {}
         local book_title = self.book_title or first.book_title or _("Annotations")
-        local authors = first.book_authors and NoteWrapper:new(first):getDisplayAuthors()
+        local authors = first.book_authors and core.NoteWrapper:new(first):getDisplayAuthors()
         local sub = (authors and authors ~= "" and authors ~= "Unknown") and authors or nil
         local max_w = math.floor(w * 0.55)
-        local t = TextWidget:new{ text = book_title, face = getFaceOr(SERIF_FONT, 19, "cfont"), bold = true, max_width = max_w }
-        local st = TextWidget:new{ text = sub or "", face = Font:getFace("cfont", 14), fgcolor = COLORS.muted, max_width = max_w }
+        local t = TextWidget:new{ text = book_title, face = core.getFaceOr(core.SERIF_FONT, 19, "cfont"), bold = true, max_width = max_w }
+        local st = TextWidget:new{ text = sub or "", face = Font:getFace("cfont", 14), fgcolor = core.COLORS.muted, max_width = max_w }
         -- Text boxes include room for descenders and line gap; placing the second line from
         -- the title's baseline keeps the two lines close together, like in the mockup.
         local cap = math.floor(Screen:scaleBySize(14) * 0.72)
@@ -870,28 +790,28 @@ function NotesListWidget:buildHeader()
             dimen = Geom:new{ w = math.max(tsz.w, ssz.w), h = math.max(tsz.h, sub_y + ssz.h) }, t, st } or t
     else
         title = TextWidget:new{
-            text = _("Annotations"), face = getFaceOr(SERIF_FONT, 21, "cfont"), bold = true,
+            text = _("Annotations"), face = core.getFaceOr(core.SERIF_FONT, 21, "cfont"), bold = true,
             max_width = math.floor(w / 2),
         }
     end
     local right = HorizontalGroup:new{ align = "center" }
-    table.insert(right, newHeaderButton("appbar.search", function() self:showSearchDialog() end, self))
+    table.insert(right, atoms.newHeaderButton("appbar.search", function() self:showSearchDialog() end, self))
     do -- the filter button is always there (the badge shows how many filters are on)
-        local fbtn = newHeaderButton("appbar.settings", function() self:showFilterMenu() end, self,
-            pluginIcon("appbar.filter"))
+        local fbtn = atoms.newHeaderButton("appbar.settings", function() self:showFilterMenu() end, self,
+            core.pluginIcon("appbar.filter"))
         local n = #self:getFilterChips()
         if n > 0 then
             -- small black badge with the number of active filters, top right of the icon
             local d = Screen:scaleBySize(16)
             local num = TextWidget:new{ text = tostring(n), face = Font:getFace("cfont", 10), bold = true, fgcolor = BlitBuffer.COLOR_WHITE }
-            local badge = Pill:new{ width = d, height = d, fill = BlitBuffer.COLOR_BLACK, border = 0, num }
+            local badge = atoms.Pill:new{ width = d, height = d, fill = BlitBuffer.COLOR_BLACK, border = 0, num }
             local bs = fbtn:getSize()
             badge.overlap_offset = { bs.w - d - Screen:scaleBySize(4), Screen:scaleBySize(4) }
             fbtn = OverlapGroup:new{ dimen = Geom:new{ w = bs.w, h = bs.h }, allow_mirroring = false, fbtn, badge }
         end
         table.insert(right, fbtn)
     end
-    table.insert(right, newHeaderButton("close", function() self:onClose() end, self, nil, false))
+    table.insert(right, atoms.newHeaderButton("close", function() self:onClose() end, self, nil, false))
     table.insert(right, HorizontalSpan:new{ width = side })
     local bar_dimen = Geom:new{ w = w, h = bar_h }
     table.insert(header, OverlapGroup:new{
@@ -899,7 +819,7 @@ function NotesListWidget:buildHeader()
         LeftContainer:new{ dimen = bar_dimen, HorizontalGroup:new{
             align = "center",
             HorizontalSpan:new{ width = side },
-            newHeaderButton("appbar.menu", function() self:showMainMenu() end, self),
+            atoms.newHeaderButton("appbar.menu", function() self:showMainMenu() end, self),
             -- same space between icon and title as between the screen edge and the icon
             HorizontalSpan:new{ width = side },
             title,
@@ -910,11 +830,11 @@ function NotesListWidget:buildHeader()
     -- 2. tabs: All / Highlights (no note) / Notes / Bookmarks, plus the sort button.
     local counts = self.tab_counts or { all = 0, highlights = 0, notes = 0, bookmarks = 0 }
     local presence = self.active_filter and self.active_filter.notes_presence
-    local show_counts = getShowTotalNotes()
+    local show_counts = core.getShowTotalNotes()
     local tab_face = Font:getFace("cfont", 15)
     local line_h = Size.line.thin
     local underline_h = Screen:scaleBySize(2)
-    local row_h = TABS_HEIGHT - line_h
+    local row_h = core.TABS_HEIGHT - line_h
     local tabs = HorizontalGroup:new{ align = "top", HorizontalSpan:new{ width = h_pad } }
     local tab_list = {
         { key = nil,       label = _("All"),        n = counts.all },
@@ -927,7 +847,7 @@ function NotesListWidget:buildHeader()
         local text = tab.label .. (show_counts and ("  " .. tab.n) or "")
         local tw = TextWidget:new{
             text = text, face = tab_face, bold = active,
-            fgcolor = active and COLORS.ink or COLORS.muted,
+            fgcolor = active and core.COLORS.ink or core.COLORS.muted,
         }
         -- every tab is as wide as its bold (chosen) text, so nothing moves when another tab is chosen
         local tab_w = active and tw:getSize().w or TextWidget:new{ text = text, face = tab_face, bold = true }:getSize().w
@@ -941,12 +861,12 @@ function NotesListWidget:buildHeader()
             local dot_gap = Screen:scaleBySize(12)
             table.insert(tabs, HorizontalSpan:new{ width = dot_gap })
             table.insert(tabs, CenterContainer:new{ dimen = Geom:new{ w = Screen:scaleBySize(8), h = row_h - underline_h },
-                TextWidget:new{ text = "•", face = tab_face, fgcolor = COLORS.muted } })
+                TextWidget:new{ text = "•", face = tab_face, fgcolor = core.COLORS.muted } })
             table.insert(tabs, HorizontalSpan:new{ width = dot_gap })
         elseif i > 1 then
             table.insert(tabs, HorizontalSpan:new{ width = Screen:scaleBySize(20) })
         end
-        table.insert(tabs, TapBox:new{ box, callback = function() self:setNotesPresence(tab.key) end })
+        table.insert(tabs, atoms.TapBox:new{ box, callback = function() self:setNotesPresence(tab.key) end })
     end
     -- The tabs keep their size; the sort label gets the room that is left. When that is too
     -- little for a readable label (four tabs on a narrow screen), only the arrow is shown.
@@ -955,14 +875,14 @@ function NotesListWidget:buildHeader()
     local sort_label = HorizontalGroup:new{ align = "center" }
     if sort_room >= Screen:scaleBySize(48) then
         table.insert(sort_label, TextWidget:new{
-            text = sortModeLabel(SortState.get(self.single_book), self.single_book),
-            face = Font:getFace("cfont", 13), fgcolor = COLORS.muted,
+            text = sort.sortModeLabel(sort.SortState.get(self.single_book), self.single_book),
+            face = Font:getFace("cfont", 13), fgcolor = core.COLORS.muted,
             max_width = math.min(math.floor(w * 0.4), sort_room),
         })
         table.insert(sort_label, HorizontalSpan:new{ width = Screen:scaleBySize(3) })
     end
     table.insert(sort_label, IconWidget:new{ icon = "chevron.up", rotation_angle = 180, width = arrow_size, height = arrow_size })
-    local sort_btn = TapBox:new{
+    local sort_btn = atoms.TapBox:new{
         CenterContainer:new{ dimen = Geom:new{ w = sort_label:getSize().w + h_pad, h = row_h }, sort_label },
         callback = function() self:showSortMenu() end,
     }
@@ -972,7 +892,7 @@ function NotesListWidget:buildHeader()
         LeftContainer:new{ dimen = tabs_dimen, tabs },
         RightContainer:new{ dimen = tabs_dimen, HorizontalGroup:new{ sort_btn, HorizontalSpan:new{ width = math.floor(h_pad / 2) } } },
     })
-    table.insert(header, LineWidget:new{ dimen = Geom:new{ w = w, h = line_h }, background = COLORS.line })
+    table.insert(header, LineWidget:new{ dimen = Geom:new{ w = w, h = line_h }, background = core.COLORS.line })
 
     -- 3. active-filter chips (the tab is not repeated here)
     local lc = self._layout_chips
@@ -983,7 +903,7 @@ function NotesListWidget:buildHeader()
     return header
 end
 
-function NotesListWidget:setNotesPresence(key)
+function List.NotesListWidget:setNotesPresence(key)
     self.active_filter = self.active_filter or {}
     if self.active_filter.notes_presence == key then return end
     self.active_filter.notes_presence = key
@@ -992,14 +912,14 @@ function NotesListWidget:setNotesPresence(key)
 end
 
 -- Remove all filters except the tab that is selected.
-function NotesListWidget:clearFilters()
+function List.NotesListWidget:clearFilters()
     local presence = self.active_filter and self.active_filter.notes_presence
     self.active_filter = { notes_presence = presence }
     self.current_page = 1
     self:refresh()
 end
 
-function NotesListWidget:showSearchDialog(on_done)
+function List.NotesListWidget:showSearchDialog(on_done)
     local InputDialog = require("ui/widget/inputdialog")
     local af = self.active_filter or {}
     local dialog
@@ -1024,17 +944,17 @@ function NotesListWidget:showSearchDialog(on_done)
         input_hint = _("Words in highlights or notes"),
         buttons = buttons,
     }
-    NotesListWidget.showDialog(dialog)
+    List.NotesListWidget.showDialog(dialog)
     dialog:onShowKeyboard()
 end
 
-function NotesListWidget:updatePage()
+function List.NotesListWidget:updatePage()
     self:computeLayout()
-    local pag_style = getPaginationStyle()
+    local pag_style = core.getPaginationStyle()
     local header = self:buildHeader()
 
     local notes_group = VerticalGroup:new{ align = "left" }
-    local top_padding = getTopPadding()
+    local top_padding = core.getTopPadding()
     if top_padding > 0 then
         table.insert(notes_group, VerticalSpan:new{ width = top_padding })
     end
@@ -1053,7 +973,7 @@ function NotesListWidget:updatePage()
     -- used by onTap() to find what was tapped
     local tap_rows = {}
     local row_y = top_padding
-    local dedup_fields = getDedupInfoFields()
+    local dedup_fields = core.getDedupInfoFields()
     local note_width = self.note_width
     -- determine dedup state from last note of previous page
     local dedup_prev_title = nil
@@ -1064,7 +984,7 @@ function NotesListWidget:updatePage()
             local prev_note = self.filtered_notes[prev_page[#prev_page]]
             if prev_note then
                 dedup_prev_title = prev_note.book_title
-                dedup_prev_info_key = getNoteInfoKey(prev_note, dedup_fields)
+                dedup_prev_info_key = core.getNoteInfoKey(prev_note, dedup_fields)
                 prev_chapter = prev_note.chapter -- a continued chapter gets no heading (unless repeated)
             end
         end
@@ -1073,25 +993,27 @@ function NotesListWidget:updatePage()
         local note = self.filtered_notes[idx]
         if note then
             local is_first_on_page = (i == 1)
-            local skip_title, skip_info = getHeaderSkips(note, is_first_on_page, dedup_prev_title, dedup_prev_info_key, dedup_fields)
+            local skip_title, skip_info = core.getHeaderSkips(note, is_first_on_page, dedup_prev_title, dedup_prev_info_key, dedup_fields)
             if self.single_book then skip_title = true end
             if not is_first_on_page then
-                local gap = NoteItemWidget.gapAbove(note, skip_title)
+                local gap = item.NoteItemWidget.gapAbove(note, skip_title)
                 table.insert(notes_group, VerticalSpan:new{ width = gap })
                 row_y = row_y + gap
             end
-            if self.single_book and NoteItemWidget.showHeadings() and note.chapter and note.chapter ~= "" and ((is_first_on_page and NoteItemWidget.repeatChapter()) or note.chapter ~= prev_chapter) then
-                table.insert(notes_group, place(NoteItemWidget.chapterHeading(note.chapter, note_width)))
-                row_y = row_y + NoteItemWidget.headingHeight(note.chapter, note_width)
+            if self.single_book and item.NoteItemWidget.showHeadings() and note.chapter and note.chapter ~= ""
+                    and ((is_first_on_page and item.NoteItemWidget.repeatChapter()) or note.chapter ~= prev_chapter) then
+                table.insert(notes_group, place(item.NoteItemWidget.chapterHeading(note.chapter, note_width)))
+                row_y = row_y + item.NoteItemWidget.headingHeight(note.chapter, note_width)
             end
             prev_chapter = note.chapter
-            local note_widget = NoteItemWidget:new{ width = note_width, note = note, show_parent = self, skip_title = skip_title, skip_info = skip_info }
+            local note_widget = item.NoteItemWidget:new{ width = note_width, note = note,
+                show_parent = self, skip_title = skip_title, skip_info = skip_info }
             table.insert(notes_group, place(note_widget))
             table.insert(tap_rows, { top = row_y, bottom = row_y + note_widget.dimen.h, note = note })
             row_y = row_y + note_widget.dimen.h
             if i == #page_indices then last_note_widget = note_widget end
             dedup_prev_title = note.book_title
-            dedup_prev_info_key = getNoteInfoKey(note, dedup_fields)
+            dedup_prev_info_key = core.getNoteInfoKey(note, dedup_fields)
         end
     end
 
@@ -1112,7 +1034,7 @@ function NotesListWidget:updatePage()
                 hidden_text = hidden == 1 and _("1 more bookmark is hidden by filters") or _("%d more bookmarks are hidden by filters")
             end
             local msg = TextWidget:new{ text = string.format(hidden_text, hidden),
-                face = face, fgcolor = COLORS.muted, max_width = self.note_width - 2 * getHMargin() }
+                face = face, fgcolor = core.COLORS.muted, max_width = self.note_width - 2 * core.getHMargin() }
             local link = TextWidget:new{ text = _("Clear all"), face = face } -- same as "Clear all" by the chips
             local line = LineWidget:new{ dimen = Geom:new{ w = link:getSize().w, h = Size.line.medium }, background = BlitBuffer.COLOR_BLACK }
             local gap = Screen:scaleBySize(16)
@@ -1128,8 +1050,8 @@ function NotesListWidget:updatePage()
     end
 
     -- Filters (or the tab) leave nothing: say so in the middle of the list
-    if #page_indices == 0 and NotesListWidget.States then
-        notes_group = NotesListWidget.States.noMatch(self, self.width,
+    if #page_indices == 0 and List.NotesListWidget.States then
+        notes_group = List.NotesListWidget.States.noMatch(self, self.width,
             self.height - self.title_height - self.footer_height)
     end
 
@@ -1142,17 +1064,19 @@ function NotesListWidget:updatePage()
             for _i, w in ipairs(notes_group) do
                 if w.getSize then used_height = used_height + w:getSize().h end
             end
-            local available_height = self.height - self.title_height - self.footer_height - used_height - NoteItemWidget.gapAbove(next_note, true) - 2
+            local available_height = self.height - self.title_height - self.footer_height
+                - used_height - item.NoteItemWidget.gapAbove(next_note, true) - 2
             if available_height > 0 then
-                local preview_skip_title, preview_skip_info = getHeaderSkips(next_note, false, dedup_prev_title, dedup_prev_info_key, dedup_fields)
+                local preview_skip_title, preview_skip_info = core.getHeaderSkips(
+                    next_note, false, dedup_prev_title, dedup_prev_info_key, dedup_fields)
                 if self.single_book then preview_skip_title = true end
-                local preview_widget = NoteItemWidget:new{
+                local preview_widget = item.NoteItemWidget:new{
                     width = note_width, note = next_note, show_parent = self,
-                    is_preview = true, disable_tap = true,
+                    is_preview = true,
                     skip_title = preview_skip_title, skip_info = preview_skip_info,
                 }
                 local AlphaContainer = require("ui/widget/container/alphacontainer")
-                table.insert(notes_group, VerticalSpan:new{ width = NoteItemWidget.gapAbove(next_note, true) })
+                table.insert(notes_group, VerticalSpan:new{ width = item.NoteItemWidget.gapAbove(next_note, true) })
                 table.insert(notes_group, place(AlphaContainer:new{
                     alpha = 0.2,
                     FrameContainer:new{
@@ -1191,13 +1115,13 @@ function NotesListWidget:updatePage()
     local tap_height = self.height - self.title_height - self.footer_height
     -- In scrollbar mode, exclude the scrollbar column so taps/swipes there reach the strip
     local tap_width = self.width
-    if isScrollbarStyle(pag_style) and self.sb_x and not self.no_scrollbar then
+    if core.isScrollbarStyle(pag_style) and self.sb_x and not self.no_scrollbar then
         tap_width = self.sb_x
     end
     self.ges_events.Tap = { GestureRange:new{ ges = "tap", range = Geom:new{ x = 0, y = self.title_height, w = tap_width, h = tap_height } } }
     -- Narrow swipe range so the scrollbar column isn't claimed by page-turn swipes
     local swipe_range = Geom:new{ x = 0, y = 0, w = tap_width, h = self.height }
-    local swipe_setting = getSwipeSetting()
+    local swipe_setting = core.getSwipeSetting()
     local horiz = swipe_setting == "horizontal" or swipe_setting == "both"
     local vert = swipe_setting == "vertical" or swipe_setting == "both"
     self.ges_events.SwipeWest  = horiz and { GestureRange:new{ ges = "swipe", range = swipe_range, direction = "west" } } or nil
@@ -1207,15 +1131,15 @@ function NotesListWidget:updatePage()
 
     UIManager:setDirty(self, "ui")
 end
-function NotesListWidget:showMainMenu()
-    NotesListWidget.States.menu(self)
+function List.NotesListWidget:showMainMenu()
+    List.NotesListWidget.States.menu(self)
 end
 -- Export: the list (with its filter and sort) as a Markdown or plain-text file, or onto the
 -- clipboard. What goes in is set on the Export page (☰ → Export, or Settings → Export); every
 -- option is a setting "export_<name>" with its default here. Export.build turns notes into text.
 -- The filter of the list in plain words, for the top of an export: the tab, then each filter
 -- as its chip says it, with every book, chapter and tag named.
-function NotesListWidget:exportFilterLabel()
+function List.NotesListWidget:exportFilterLabel()
     local af = self.active_filter or {}
     local parts = {}
     local tabs = { exclude = _("Highlights"), only = _("Notes"), bookmarks = _("Bookmarks") }
@@ -1229,48 +1153,48 @@ function NotesListWidget:exportFilterLabel()
 end
 -- Writes the annotations currently in the list (with the active filter and sort order) to files
 -- with the Export page's options.
-function NotesListWidget:exportList()
+function List.NotesListWidget:exportList()
     local notes = self.filtered_notes or {}
     if #notes == 0 then
-        NotesListWidget.showDialog(InfoMessage:new{ text = _("Nothing to export.") })
+        List.NotesListWidget.showDialog(InfoMessage:new{ text = _("Nothing to export.") })
         return
     end
-    local path, n_files = Export.write(notes, Export.options(), self:exportFilterLabel())
+    local path, n_files = exportmod.write(notes, exportmod.options(), self:exportFilterLabel())
     if not path then
-        NotesListWidget.showDialog(InfoMessage:new{ text = _("Export failed:") .. " " .. tostring(n_files) })
+        List.NotesListWidget.showDialog(InfoMessage:new{ text = _("Export failed:") .. " " .. tostring(n_files) })
         return
     end
-    NotesListWidget.States.exported(#notes, path, Export.allBookmarks(notes), n_files)
+    List.NotesListWidget.States.exported(#notes, path, exportmod.allBookmarks(notes), n_files)
 end
 -- the old name (kept for anything that still calls it)
-function NotesListWidget:exportToMarkdown() self:exportList() end
+function List.NotesListWidget:exportToMarkdown() self:exportList() end
 -- Copies the same text onto the clipboard (all books in one, also with a file per book).
-function NotesListWidget:copyList()
+function List.NotesListWidget:copyList()
     local notes = self.filtered_notes or {}
     if #notes == 0 then
-        NotesListWidget.showDialog(InfoMessage:new{ text = _("Nothing to export.") })
+        List.NotesListWidget.showDialog(InfoMessage:new{ text = _("Nothing to export.") })
         return
     end
     local set = Device.input and Device.input.setClipboardText
     if type(set) ~= "function" then
-        NotesListWidget.showDialog(InfoMessage:new{ text = _("This device has no clipboard.") })
+        List.NotesListWidget.showDialog(InfoMessage:new{ text = _("This device has no clipboard.") })
         return
     end
-    set(Export.build(notes, Export.options(), self:exportFilterLabel()))
-    NotesListWidget.States.exported(#notes, nil, Export.allBookmarks(notes), 0, true)
+    set(exportmod.build(notes, exportmod.options(), self:exportFilterLabel()))
+    List.NotesListWidget.States.exported(#notes, nil, exportmod.allBookmarks(notes), 0, true)
 end
-function NotesListWidget:showSortMenu(on_done)
-    NotesListWidget.States.sortMenu(self, on_done)
+function List.NotesListWidget:showSortMenu(on_done)
+    List.NotesListWidget.States.sortMenu(self, on_done)
 end
-function NotesListWidget:applySort()
-    self:sortNotesList(self.notes_list, SortState.get(self.single_book), self.single_book)
+function List.NotesListWidget:applySort()
+    self:sortNotesList(self.notes_list, sort.SortState.get(self.single_book), self.single_book)
 end
-function NotesListWidget:sortNotesList(notes_list, sort_mode, single)
-    sort_mode = sort_mode or SortState.get(single)
+function List.NotesListWidget:sortNotesList(notes_list, sort_mode, single)
+    sort_mode = sort_mode or sort.SortState.get(single)
     -- the rule as it applies to this view; one that can't be read sorts newest first, as its label says
-    sort_mode = SortState.normView(sort_mode, single)
-    local comparator = SORT_COMPARATORS[sort_mode] or SORT_COMPARATORS["date:desc"]
-    local levels = SortState.parse(sort_mode)
+    sort_mode = sort.SortState.normView(sort_mode, single)
+    local comparator = sort.SORT_COMPARATORS[sort_mode] or sort.SORT_COMPARATORS["date:desc"]
+    local levels = sort.SortState.parse(sort_mode)
     local uses_opened, uses_chapter = false, false
     for _, l in ipairs(levels or {}) do
         if l.key == "opened" then uses_opened = true end
@@ -1280,7 +1204,7 @@ function NotesListWidget:sortNotesList(notes_list, sort_mode, single)
         -- chapters rank in the order they first show up in the book
         local tmp = {}
         for i, n in ipairs(notes_list) do tmp[i] = n end
-        table.sort(tmp, SORT_COMPARATORS["pos:asc"])
+        table.sort(tmp, sort.SORT_COMPARATORS["pos:asc"])
         local rank, nxt = {}, 0
         for _, n in ipairs(tmp) do
             local ch = n.chapter or ""
@@ -1289,43 +1213,43 @@ function NotesListWidget:sortNotesList(notes_list, sort_mode, single)
         end
     end
     if uses_opened then
-        SortState.opened = {}
+        sort.SortState.opened = {}
         for _, item in ipairs(ReadHistory.hist or {}) do
-            if item.file then SortState.opened[NotesListWidget.realPath(item.file)] = tonumber(item.time) or 0 end
+            if item.file then sort.SortState.opened[List.NotesListWidget.realPath(item.file)] = tonumber(item.time) or 0 end
         end
         -- the list may name a book differently from the history (a link, another mount name)
         local by_path = {}
         for _, n in ipairs(notes_list) do
             local p = n.book_path
-            if p and by_path[p] == nil then by_path[p] = SortState.opened[NotesListWidget.realPath(p)] or false end
+            if p and by_path[p] == nil then by_path[p] = sort.SortState.opened[List.NotesListWidget.realPath(p)] or false end
         end
-        for p, t in pairs(by_path) do if t then SortState.opened[p] = t end end
+        for p, t in pairs(by_path) do if t then sort.SortState.opened[p] = t end end
     end
     if comparator then
         table.sort(notes_list, comparator)
     end
     return notes_list
 end
-function NotesListWidget:showSettingsMenu()
+function List.NotesListWidget:showSettingsMenu()
     -- the sub-dialogs (spin settings, typefaces) come back here: rebuild the page if it is open
     if self.settings_screen then
         self.settings_screen:rebuild()
         return
     end
-    self.settings_screen = NotesListWidget.SettingsScreen:new{ list = self }
+    self.settings_screen = List.NotesListWidget.SettingsScreen:new{ list = self }
     UIManager:show(self.settings_screen, "flashui")
 end
 -- The Export page: its options with a preview of the file, and Copy / Export at the bottom.
-function NotesListWidget:showExportPage()
-    UIManager:show(NotesListWidget.SettingsScreen:new{ list = self, page = "export", export_action = true }, "flashui")
+function List.NotesListWidget:showExportPage()
+    UIManager:show(List.NotesListWidget.SettingsScreen:new{ list = self, page = "export", export_action = true }, "flashui")
 end
-function NotesListWidget:showSpinSetting(title, key, default, min, max, step, back_callback)
-    NotesListWidget.showDialog(SpinWidget:new{
+function List.NotesListWidget:showSpinSetting(title, key, default, min, max, step, back_callback)
+    List.NotesListWidget.showDialog(SpinWidget:new{
         title_text = title,
-        value = getSetting(key, default), value_min = min, value_max = max, value_step = step,
+        value = core.getSetting(key, default), value_min = min, value_max = max, value_step = step,
         default_value = default, ok_text = _("Set"),
         callback = function(spin)
-            setSetting(key, spin.value)
+            core.setSetting(key, spin.value)
             self:refresh()
             if back_callback then back_callback() end
         end,
@@ -1334,13 +1258,12 @@ function NotesListWidget:showSpinSetting(title, key, default, min, max, step, ba
         end,
     })
 end
-function NotesListWidget:showFilterMenu()
+function List.NotesListWidget:showFilterMenu()
     local function ensureFilter()
         if not self.active_filter or type(self.active_filter) ~= "table" then
             self.active_filter = {}
         end
     end
-
 
     -- Single-book context: launched from the reader (current book only),
     -- or the book filter is narrowed to exactly one book.
@@ -1423,7 +1346,7 @@ function NotesListWidget:showFilterMenu()
                     },
                 },
             }
-            NotesListWidget.showDialog(input_dialog)
+            List.NotesListWidget.showDialog(input_dialog)
             input_dialog:onShowKeyboard()
         end
         rebuildDialog(init_query)
@@ -1441,7 +1364,7 @@ function NotesListWidget:showFilterMenu()
         text = function(field, title, hint, is_exclude) showTextSearchFilter(field, title, hint, is_exclude) end,
     }
 end
-function NotesListWidget:refresh()
+function List.NotesListWidget:refresh()
     self:computeLayout()
     local prev_page = self.current_page or 1
     self:syncSortTab()
@@ -1450,7 +1373,7 @@ function NotesListWidget:refresh()
     self.current_page = math.max(1, math.min(prev_page, self.total_pages or 1))
     self:updatePage()
 end
-function NotesListWidget:onGotoNextPage()
+function List.NotesListWidget:onGotoNextPage()
     if self.current_page < self.total_pages then
         self.current_page = self.current_page + 1
     else
@@ -1459,7 +1382,7 @@ function NotesListWidget:onGotoNextPage()
     self:updatePage()
     return true
 end
-function NotesListWidget:onGotoPrevPage()
+function List.NotesListWidget:onGotoPrevPage()
     if self.current_page > 1 then
         self.current_page = self.current_page - 1
     else
@@ -1468,53 +1391,53 @@ function NotesListWidget:onGotoPrevPage()
     self:updatePage()
     return true
 end
-function NotesListWidget:onSwipeWest()  return self:onGotoNextPage() end
-function NotesListWidget:onSwipeNorth() return self:onGotoNextPage() end
-function NotesListWidget:onSwipeEast()  return self:onGotoPrevPage() end
-function NotesListWidget:onSwipeSouth() return self:onGotoPrevPage() end
+function List.NotesListWidget:onSwipeWest()  return self:onGotoNextPage() end
+function List.NotesListWidget:onSwipeNorth() return self:onGotoNextPage() end
+function List.NotesListWidget:onSwipeEast()  return self:onGotoPrevPage() end
+function List.NotesListWidget:onSwipeSouth() return self:onGotoPrevPage() end
 -- The plugin's own gesture events: a gesture set to one of these does nothing while the list is
 -- open (it would open a second list on top).
-NotesListWidget.OWN_EVENTS = { ShowAnnotationsHere = true, ShowBookmarksHere = true, ShowAllAnnotations = true,
+List.NotesListWidget.OWN_EVENTS = { ShowAnnotationsHere = true, ShowBookmarksHere = true, ShowAllAnnotations = true,
     ShowCurrentBookAnnotations = true, ShowAllBookmarksList = true, ShowCurrentBookBookmarksList = true }
 -- Actions that leave this screen (file browser, open a book): the list closes first, so it isn't
 -- left on top of what comes next.
-NotesListWidget.LEAVE_EVENTS = { Home = true, OpenLastDoc = true, OpenNextOrPreviousFileInFolder = true }
+List.NotesListWidget.LEAVE_EVENTS = { Home = true, OpenLastDoc = true, OpenNextOrPreviousFileInFolder = true }
 -- the list on screen (one at a time); its windows are closed before a leave action
-function NotesListWidget:onCloseWidget()
-    if NotesListWidget._current == self then NotesListWidget._current = nil end
-    flushSettings()
+function List.NotesListWidget:onCloseWidget()
+    if List.NotesListWidget._current == self then List.NotesListWidget._current = nil end
+    core.flushSettings()
 end
 -- The plugin's other windows on screen (sheet, cards, full-screen pages, KOReader dialogs shown
 -- through showDialog), in the order they were shown, so a leave action can close them all.
-NotesListWidget._windows = setmetatable({}, { __mode = "k" })
-NotesListWidget._window_n = 0
-function NotesListWidget.trackWindow(w)
+List.NotesListWidget._windows = setmetatable({}, { __mode = "k" })
+List.NotesListWidget._window_n = 0
+function List.NotesListWidget.trackWindow(w)
     if type(w) ~= "table" or w._av_tracked then return end
     w._av_tracked = true
     local on_show, on_close = w.onShow, w.onCloseWidget
     w.onShow = function(self, ...)
-        NotesListWidget._window_n = NotesListWidget._window_n + 1
-        NotesListWidget._windows[self] = NotesListWidget._window_n
+        List.NotesListWidget._window_n = List.NotesListWidget._window_n + 1
+        List.NotesListWidget._windows[self] = List.NotesListWidget._window_n
         if on_show then return on_show(self, ...) end
     end
     w.onCloseWidget = function(self, ...)
-        NotesListWidget._windows[self] = nil
+        List.NotesListWidget._windows[self] = nil
         if on_close then return on_close(self, ...) end
     end
 end
 -- Closes every window of the plugin, the newest first, then the list.
-function NotesListWidget.closeAll(from)
+function List.NotesListWidget.closeAll(from)
     local open = {}
-    for w, n in pairs(NotesListWidget._windows) do open[#open + 1] = { w = w, n = n } end
+    for w, n in pairs(List.NotesListWidget._windows) do open[#open + 1] = { w = w, n = n } end
     table.sort(open, function(a, b) return a.n > b.n end)
     local done = {}
     for i = 1, #open do UIManager:close(open[i].w); done[open[i].w] = true end
     local w = from -- and anything shown in a way that wasn't tracked: the pages it came from
-    while w and w ~= NotesListWidget._current do
+    while w and w ~= List.NotesListWidget._current do
         if not done[w] then UIManager:close(w); done[w] = true end
         w = w.parent_screen or w.parent
     end
-    if NotesListWidget._current then UIManager:close(NotesListWidget._current) end
+    if List.NotesListWidget._current then UIManager:close(List.NotesListWidget._current) end
 end
 -- Runs KOReader's gesture action fn() for a gesture the plugin's windows don't use. Its events go
 -- to every window (KOReader only sends them to the top one, which is the list), so frontlight,
@@ -1522,7 +1445,7 @@ end
 -- off: the plugin's own (no second list), and the book's own (Reader: page turns, chapters,
 -- bookmarks ...), which would act on the book hidden behind the list. A leave action closes the
 -- plugin's windows first. from: the plugin window that got the gesture.
-function NotesListWidget.runForwarded(fn, from)
+function List.NotesListWidget.runForwarded(fn, from)
     local Dispatcher = require("dispatcher")
     local orig_send, orig_enabled = UIManager.sendEvent, Dispatcher.isActionEnabled
     local closed = false
@@ -1530,15 +1453,15 @@ function NotesListWidget.runForwarded(fn, from)
         -- a leave action: close the plugin's windows when it is really sent (a QuickMenu only
         -- checks its actions while building the menu)
         local name = type(ev) == "table" and type(ev.handler) == "string" and ev.handler:match("^on(.+)$")
-        if name and NotesListWidget.LEAVE_EVENTS[name] and not closed then
+        if name and List.NotesListWidget.LEAVE_EVENTS[name] and not closed then
             closed = true
-            NotesListWidget.closeAll(from)
+            List.NotesListWidget.closeAll(from)
         end
         return UIManager:broadcastEvent(ev)
     end
     if type(orig_enabled) == "function" then Dispatcher.isActionEnabled = function(d, action)
         if type(action) == "table" then
-            if NotesListWidget.OWN_EVENTS[action.event] then return false end
+            if List.NotesListWidget.OWN_EVENTS[action.event] then return false end
             if action.reader or action.rolling or action.paging then return false end
         end
         return orig_enabled(d, action)
@@ -1551,7 +1474,7 @@ end
 -- resolving the canonical gesture name and calling gestureAction(). This
 -- bypasses the event-stack limitation where UIManager only propagates events
 -- to is_always_active widgets after the top widget.
-local function _forwardGestureToPlugin(ges_event, from)
+function List._forwardGestureToPlugin(ges_event, from)
     local g
     local ReaderUI = require("apps/reader/readerui")
     if ReaderUI.instance then g = ReaderUI.instance.gestures end
@@ -1617,7 +1540,7 @@ local function _forwardGestureToPlugin(ges_event, from)
         }
         if map[dir] then candidates[#candidates+1] = map[dir] end
     elseif gt == "multiswipe" then
-        NotesListWidget.runForwarded(function() g:multiswipeAction(ges_event.multiswipe_directions, ges_event) end, from)
+        List.NotesListWidget.runForwarded(function() g:multiswipeAction(ges_event.multiswipe_directions, ges_event) end, from)
         return true
     elseif gt == "spread" then candidates[#candidates+1] = "spread_gesture"
     elseif gt == "pinch"  then candidates[#candidates+1] = "pinch_gesture"
@@ -1633,34 +1556,34 @@ local function _forwardGestureToPlugin(ges_event, from)
         if g.gestures and g.gestures[name] ~= nil then ges_name = name; break end
     end
 
-    NotesListWidget.runForwarded(function() g:gestureAction(ges_name, ges_event) end, from)
+    List.NotesListWidget.runForwarded(function() g:gestureAction(ges_name, ges_event) end, from)
     return true
 end
 
 -- Show one of KOReader's own dialogs (edit note, confirm, number, buttons ...) and let it pass
 -- the gestures it doesn't use on to the KOReader gestures plugin, as the list does.
-function NotesListWidget.showDialog(w, ...)
+function List.NotesListWidget.showDialog(w, ...)
     local IC = require("ui/widget/container/inputcontainer")
     if type(w) == "table" and not w.toast and w.onGesture == IC.onGesture then
-        NotesListWidget.trackWindow(w)
+        List.NotesListWidget.trackWindow(w)
         w.onGesture = function(self, ev)
             if IC.onGesture(self, ev) then return true end
-            return _forwardGestureToPlugin(ev, self)
+            return List._forwardGestureToPlugin(ev, self)
         end
     end
     return UIManager:show(w, ...)
 end
-function NotesListWidget:onGesture(ev)
+function List.NotesListWidget:onGesture(ev)
     -- Let InputContainer handle registered ges_events / touch zones first
     local InputContainer = require("ui/widget/container/inputcontainer")
     if InputContainer.onGesture(self, ev) then return true end
-    return _forwardGestureToPlugin(ev, self)
+    return List._forwardGestureToPlugin(ev, self)
 end
-function NotesListWidget:onTap(_, ges)
+function List.NotesListWidget:onTap(_, ges)
     if not ges or not ges.pos then return end
     -- exclude scrollbar column
-    local pag_style = getPaginationStyle()
-    if isScrollbarStyle(pag_style) and self.sb_x and not self.no_scrollbar and ges.pos.x >= self.sb_x then
+    local pag_style = core.getPaginationStyle()
+    if core.isScrollbarStyle(pag_style) and self.sb_x and not self.no_scrollbar and ges.pos.x >= self.sb_x then
         return
     end
     local tap_y = ges.pos.y
@@ -1679,19 +1602,19 @@ function NotesListWidget:onTap(_, ges)
     end
     return false
 end
-function NotesListWidget:onNoteSelected(note)
+function List.NotesListWidget:onNoteSelected(note)
     if self.viewer and self.viewer.showNoteDetails then
         self.viewer:showNoteDetails(note, self)
     end
 end
-function NotesListWidget:onClose()
+function List.NotesListWidget:onClose()
     -- full-screen widget: refresh what was underneath, or e-ink keeps showing the list
     UIManager:close(self, "flashui")
     return true
 end
 -- Screen rotated or window resized: rebuild the layout for the new size and stay on the
 -- page that shows the annotation that was at the top before.
-function NotesListWidget:onScreenResize()
+function List.NotesListWidget:onScreenResize()
     local page = self.pages and self.pages[self.current_page]
     local first_idx = page and page[1]
     self.current_page = 1
@@ -1712,7 +1635,7 @@ function NotesListWidget:onScreenResize()
 end
 -- Rotation doesn't always reach this widget as an event, so also check the size whenever
 -- we're painted and re-layout (outside the paint) if the screen changed.
-function NotesListWidget:paintTo(bb, x, y)
+function List.NotesListWidget:paintTo(bb, x, y)
     if (self.width ~= Screen:getWidth() or self.height ~= Screen:getHeight()) and not self._resize_pending then
         self._resize_pending = true
         UIManager:nextTick(function()
@@ -1730,7 +1653,7 @@ end
 -- "mtime" holds a key describing the sidecar's state (modification time and size); an entry
 -- is only used while the key still matches.
 -- Returns those files, most recent first, or errors when KOReader has no such API (before 2024).
-function NotesListWidget.sidecarCandidates(book_path)
+function List.NotesListWidget.sidecarCandidates(book_path)
     if type(book_path) ~= "string" or book_path == "" or not DocSettings.findSidecarFile then error("no API") end
     local name = DocSettings.getSidecarFilename(book_path)
     local list = {}
@@ -1769,49 +1692,49 @@ function NotesListWidget.sidecarCandidates(book_path)
 end
 -- The real path of a file (links followed), or the path itself when that can't be worked out
 -- (missing file, no realpath). Kept per path; findAllNotes starts each scan with an empty table.
-NotesListWidget._realpaths = {}
-function NotesListWidget.realPath(path)
+List.NotesListWidget._realpaths = {}
+function List.NotesListWidget.realPath(path)
     if type(path) ~= "string" then return path end
-    local real = NotesListWidget._realpaths[path]
+    local real = List.NotesListWidget._realpaths[path]
     if real == nil then
         local ok, ffiutil = pcall(require, "ffi/util")
         local ok_rp, rp = false, nil
         if ok and type(ffiutil) == "table" and ffiutil.realpath then ok_rp, rp = pcall(ffiutil.realpath, path) end
         real = (ok_rp and type(rp) == "string" and rp ~= "") and rp or path
-        NotesListWidget._realpaths[path] = real
+        List.NotesListWidget._realpaths[path] = real
     end
     return real
 end
 -- Are these the same book? The open book's path can be written differently from the list's
 -- (a link to the folder, /mnt/us and /mnt/base-us on a Kindle, the path KOReader saved earlier).
-function NotesListWidget.samePath(a, b)
+function List.NotesListWidget.samePath(a, b)
     if type(a) ~= "string" or type(b) ~= "string" then return false end
     if a == b then return true end
-    if NotesListWidget.realPath(a) == NotesListWidget.realPath(b) then return true end
+    if List.NotesListWidget.realPath(a) == List.NotesListWidget.realPath(b) then return true end
     -- two mounts of the same storage (no link to follow): the same file on the same device
     local fa, fb = lfs.attributes(a), lfs.attributes(b)
     return fa ~= nil and fb ~= nil and fa.mode == "file" and fa.ino ~= nil and fa.ino ~= 0
         and fa.dev == fb.dev and fa.ino == fb.ino
 end
-function NotesListWidget:showFilterScreen(helpers)
+function List.NotesListWidget:showFilterScreen(helpers)
     if self.filter_screen then UIManager:close(self.filter_screen) end
-    self.filter_screen = FilterScreen:new{ list = self, helpers = helpers }
+    self.filter_screen = pages.FilterScreen:new{ list = self, helpers = helpers }
     UIManager:show(self.filter_screen, "flashui")
 end
-function NotesListWidget:showSortPicker(on_done)
-    UIManager:show(SortPicker:new{ list = self, on_done = on_done })
+function List.NotesListWidget:showSortPicker(on_done)
+    UIManager:show(pages.SortPicker:new{ list = self, on_done = on_done })
 end
 
 -- The pickers count what the open tab is about: bookmarks on the Bookmarks tab, annotations
 -- (highlights and notes) on the others. An item with nothing of that kind is left out, unless it
 -- is already ticked (so it can still be unticked).
-function NotesListWidget:countsHere(n)
+function List.NotesListWidget:countsHere(n)
     return (n.bookmark == true) == (self:tabKey() == "bookmarks")
 end
 -- How many entries a picker offers on this tab (what pickerItems keeps): values with something on
 -- this tab, plus the ones chosen in the filter. keysOf(note) gives a note's values. Used for the
 -- "N of M" / "All M" on Filter & sort and the ☰ menu, so they match the picker.
-function NotesListWidget:offeredCount(inc_key, exc_key, keysOf)
+function List.NotesListWidget:offeredCount(inc_key, exc_key, keysOf)
     local af = self.active_filter or {}
     local inc, exc = af[inc_key], af[exc_key]
     local seen, count = {}, 0
@@ -1829,8 +1752,8 @@ function NotesListWidget:offeredCount(inc_key, exc_key, keysOf)
     end
     return count
 end
-function NotesListWidget.bookKeys(n) return { n.book_title or _("Unknown") } end
-function NotesListWidget:pickerItems(items, inc_key, exc_key)
+function List.NotesListWidget.bookKeys(n) return { n.book_title or _("Unknown") } end
+function List.NotesListWidget:pickerItems(items, inc_key, exc_key)
     local af = self.active_filter or {}
     local out = {}
     for _i, it in ipairs(items) do
@@ -1840,13 +1763,13 @@ function NotesListWidget:pickerItems(items, inc_key, exc_key)
     end
     return out
 end
-function NotesListWidget:showBookPicker(on_done)
+function List.NotesListWidget:showBookPicker(on_done)
     local by_title, items = {}, {}
     for _i, n in ipairs(self.notes_list) do
         local t = n.book_title or _("Unknown")
         local it = by_title[t]
         if not it then
-            local a = NoteWrapper:new(n):getDisplayAuthors()
+            local a = core.NoteWrapper:new(n):getDisplayAuthors()
             it = { key = t, title = t, subtitle = (a and a ~= "Unknown") and a or nil, count = 0, serif = true }
             by_title[t] = it
             table.insert(items, it)
@@ -1854,22 +1777,22 @@ function NotesListWidget:showBookPicker(on_done)
         if self:countsHere(n) then it.count = it.count + 1 end
     end
     items = self:pickerItems(items, "books", "books_exclude")
-    table.sort(items, function(a, b) return normalizeBookTitle(a.title) < normalizeBookTitle(b.title) end)
-    UIManager:show(ListPicker:new{ list = self, title = _("Books"), items = items, inc_key = "books", exc_key = "books_exclude",
+    table.sort(items, function(a, b) return sort.normalizeBookTitle(a.title) < sort.normalizeBookTitle(b.title) end)
+    UIManager:show(pages.ListPicker:new{ list = self, title = _("Books"), items = items, inc_key = "books", exc_key = "books_exclude",
         mode_labels = { _("Only these books"), _("Hide these books") }, search_hint = _("Search title or author"), on_done = on_done })
 end
 -- kind: "authors", "series" or "languages"
-function NotesListWidget:showMetaPicker(kind, on_done)
+function List.NotesListWidget:showMetaPicker(kind, on_done)
     local seen, items = {}, {}
     for i = 1, #self.notes_list do
         local n = self.notes_list[i]
         local here = self:countsHere(n)
-        local vals = NotesListWidget.metaValues(n, kind)
+        local vals = List.NotesListWidget.metaValues(n, kind)
         for j = 1, #vals do
             local v = vals[j]
             local it = seen[v]
             if not it then
-                it = { key = v, title = NotesListWidget.metaLabel(v), count = 0 }
+                it = { key = v, title = List.NotesListWidget.metaLabel(v), count = 0 }
                 seen[v] = it
                 table.insert(items, it)
             end
@@ -1887,10 +1810,10 @@ function NotesListWidget:showMetaPicker(kind, on_done)
         languages = { _("Language"), _("Only these languages"), _("Hide these languages"), nil },
     }
     local t = texts[kind]
-    UIManager:show(ListPicker:new{ list = self, title = t[1], items = items, inc_key = kind, exc_key = kind .. "_exclude",
+    UIManager:show(pages.ListPicker:new{ list = self, title = t[1], items = items, inc_key = kind, exc_key = kind .. "_exclude",
         mode_labels = { t[2], t[3] }, search_hint = t[4], on_done = on_done })
 end
-function NotesListWidget:showChapterPicker(on_done)
+function List.NotesListWidget:showChapterPicker(on_done)
     local seen, items = {}, {}
     local book_filter = self.active_filter and self.active_filter.books
     for _i, n in ipairs(self.notes_list) do
@@ -1911,26 +1834,26 @@ function NotesListWidget:showChapterPicker(on_done)
     for i = 1, #self.notes_list do
         local n = self.notes_list[i]
         local c = n.chapter
-        if c and (not first[c] or compareByPosition(n, first[c])) then first[c] = n end
+        if c and (not first[c] or sort.compareByPosition(n, first[c])) then first[c] = n end
     end
     table.sort(items, function(a, b)
-        if a.group ~= b.group then return normalizeBookTitle(a.group or "") < normalizeBookTitle(b.group or "") end
+        if a.group ~= b.group then return sort.normalizeBookTitle(a.group or "") < sort.normalizeBookTitle(b.group or "") end
         local na, nb = first[a.key], first[b.key]
         if na and nb then
-            if compareByPosition(na, nb) then return true end
-            if compareByPosition(nb, na) then return false end
+            if sort.compareByPosition(na, nb) then return true end
+            if sort.compareByPosition(nb, na) then return false end
         end
         return a.title < b.title
     end)
-    UIManager:show(ListPicker:new{ list = self, title = _("Chapters"), items = items, inc_key = "chapters", exc_key = "chapters_exclude",
+    UIManager:show(pages.ListPicker:new{ list = self, title = _("Chapters"), items = items, inc_key = "chapters", exc_key = "chapters_exclude",
         mode_labels = { _("Only these chapters"), _("Hide these chapters") }, on_done = on_done })
 end
-function NotesListWidget:showTagPicker(on_done)
+function List.NotesListWidget:showTagPicker(on_done)
     local seen, items = {}, {}
     local book_filter = self.active_filter and self.active_filter.books
     for _i, n in ipairs(self.notes_list) do
         if not book_filter or not next(book_filter) or book_filter[n.book_title] then
-            for _j, tag in ipairs(NoteWrapper:new(n):getTags()) do
+            for _j, tag in ipairs(core.NoteWrapper:new(n):getTags()) do
                 if tag ~= "" then
                     local it = seen[tag]
                     if not it then it = { key = tag, title = tag, count = 0 }; seen[tag] = it; table.insert(items, it) end
@@ -1941,20 +1864,12 @@ function NotesListWidget:showTagPicker(on_done)
     end
     items = self:pickerItems(items, "tags", "tags_exclude")
     table.sort(items, function(a, b) return a.title:lower() < b.title:lower() end)
-    UIManager:show(ListPicker:new{ list = self, title = _("Tags"), items = items, inc_key = "tags", exc_key = "tags_exclude",
+    UIManager:show(pages.ListPicker:new{ list = self, title = _("Tags"), items = items, inc_key = "tags", exc_key = "tags_exclude",
         mode_labels = { _("Only these tags"), _("Hide these tags") }, on_done = on_done })
 end
 
--- Module exports
-M.NotesListWidget = NotesListWidget
-M.colorName = colorName
-M.setLabel = setLabel
-M.CHIP_HEIGHT = CHIP_HEIGHT
-M.CHIP_GAP = CHIP_GAP
-M._forwardGestureToPlugin = _forwardGestureToPlugin
-
-function M.bind(deps)
+function List.bind(deps)
     if deps.AllNotesViewer then AllNotesViewer = deps.AllNotesViewer end
 end
 
-return M
+return List

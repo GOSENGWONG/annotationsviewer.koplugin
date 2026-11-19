@@ -1,123 +1,40 @@
-local M = {}
+-- anv_data.lua — Annotations Viewer
+--
+-- Sidecar data layer: reads and caches KOReader highlight and bookmark
+-- sidecars, matches notes to stored entries and edits annotations. An
+-- in-memory cache is backed by a persistent on-disk cache; main.lua calls
+-- bind(deps) after load to inject collaborators that were nil at load time.
+--
+-- Public API (used by other modules):
+--   getSidecarKey    cache key for a book's highlight sidecar
+--   getBookInfoKey    cache key for a book's metadata
+--   normalizeColorStyle    canonical style name for a highlight
+--   colorStyleMatches    whether a note matches a color style
+--   itemMatchesNote    whether a sidecar entry matches a note
+--   nowStamp    current timestamp string
+--   getLiveReader    live ReaderUI for an open book, if any
+--   findLiveIndex    index of a note in the live highlight list
+--   editStoredAnnotation    apply an edit to a stored sidecar entry
+--   setLiveHighlightField    update a field in the live highlight list
+--   clearCaches / invalidateBook    drop cached sidecar/book data
+--   loadPersistentCache / savePersistentCache    load or write on-disk cache
+--   markPersistDirty / isPersistLoaded    track pending cache writes
+--   bind    inject NotesListWidget collaborator
+--   _annotation_cache / _book_info_cache    caches main.lua reads and writes directly
 
+local Data = {}
+
+local ReaderHighlight = require("apps/reader/modules/readerhighlight")
+local Event = require("ui/event")
+local UIManager = require("ui/uimanager")
+local logger = require("logger")
+local DocSettings = require("docsettings")
+local lfs = require("libs/libkoreader-lfs")
 local core = require("anv_core")
 
-local WidgetContainer = core.WidgetContainer
-local ReaderHighlight = core.ReaderHighlight
-local FrameContainer = core.FrameContainer
-local VerticalGroup = core.VerticalGroup
-local VerticalSpan = core.VerticalSpan
-local Event = core.Event
-local HorizontalGroup = core.HorizontalGroup
-local HorizontalSpan = core.HorizontalSpan
-local LeftContainer = core.LeftContainer
-local TopContainer = core.TopContainer
-local BottomContainer = core.BottomContainer
-local OverlapGroup = core.OverlapGroup
-local CenterContainer = core.CenterContainer
-local TextBoxWidget = core.TextBoxWidget
-local TextWidget = core.TextWidget
-local InputContainer = core.InputContainer
-local GestureRange = core.GestureRange
-local UIManager = core.UIManager
-local InfoMessage = core.InfoMessage
-local TextViewer = core.TextViewer
-local SpinWidget = core.SpinWidget
-local IconButton = core.IconButton
-local IconWidget = core.IconWidget
-local LineWidget = core.LineWidget
-local RightContainer = core.RightContainer
-local BlitBuffer = core.BlitBuffer
-local Screen = core.Screen
-local Device = core.Device
-local Input = core.Input
-local logger = core.logger
-local FontList = core.FontList
-local DocSettings = core.DocSettings
-local ReadHistory = core.ReadHistory
-local G_reader_settings = core.G_reader_settings
-local lfs = core.lfs
-local Font = core.Font
-local Size = core.Size
-local Geom = core.Geom
-local _ = core._
-local BD = core.BD
-
-local DEFAULT_CONTENT_FONT_SIZE = core.DEFAULT_CONTENT_FONT_SIZE
-local DEFAULT_TITLE_FONT_SIZE = core.DEFAULT_TITLE_FONT_SIZE
-local DEFAULT_INFO_FONT_SIZE = core.DEFAULT_INFO_FONT_SIZE
-local DEFAULT_H_MARGIN = core.DEFAULT_H_MARGIN
-local DEFAULT_NOTE_SPACING = core.DEFAULT_NOTE_SPACING
-local DEFAULT_TEXT_MARGIN = core.DEFAULT_TEXT_MARGIN
-local DEFAULT_TRUNCATE_LINES = core.DEFAULT_TRUNCATE_LINES
-local DEFAULT_TITLE_MARGIN = core.DEFAULT_TITLE_MARGIN
-local DEFAULT_INFO_MARGIN = core.DEFAULT_INFO_MARGIN
-local DEFAULT_TOP_PADDING = core.DEFAULT_TOP_PADDING
-local getSetting = core.getSetting
-local setSetting = core.setSetting
-local flushSettings = core.flushSettings
-local getContentFontSize = core.getContentFontSize
-local getTitleFontSize = core.getTitleFontSize
-local getInfoFontSize = core.getInfoFontSize
-local getHMargin = core.getHMargin
-local getNoteSpacing = core.getNoteSpacing
-local getTextMargin = core.getTextMargin
-local getTruncateLines = core.getTruncateLines
-local getJustify = core.getJustify
-local getTitleMargin = core.getTitleMargin
-local getInfoMargin = core.getInfoMargin
-local getTitleFont = core.getTitleFont
-local getInfoFont = core.getInfoFont
-local getContentFont = core.getContentFont
-local getShowTotalNotes = core.getShowTotalNotes
-local getTopPadding = core.getTopPadding
-local getHideDupTitle = core.getHideDupTitle
-local getHideDupInfo = core.getHideDupInfo
-local getSwipeSetting = core.getSwipeSetting
-local getDedupInfoFields = core.getDedupInfoFields
-local getShowInfo = core.getShowInfo
-local getInfoFields = core.getInfoFields
-local getAlwaysShowFirstOnPage = core.getAlwaysShowFirstOnPage
-local getRepeatTitleOnPage = core.getRepeatTitleOnPage
-local getRepeatInfoOnPage = core.getRepeatInfoOnPage
-local getHeaderSkips = core.getHeaderSkips
-local getPaginationStyle = core.getPaginationStyle
-local getScrollbarBookMarks = core.getScrollbarBookMarks
-local isScrollbarStyle = core.isScrollbarStyle
-local getNoteInfoKey = core.getNoteInfoKey
-local BOOK_GAP = core.BOOK_GAP
-local SB_THUMB_WIDTH = core.SB_THUMB_WIDTH
-local SB_TRACK_WIDTH = core.SB_TRACK_WIDTH
-local SB_STRIP_WIDTH = core.SB_STRIP_WIDTH
-local SB_MARGIN_RIGHT = core.SB_MARGIN_RIGHT
-local SB_MARGIN_V_TOP = core.SB_MARGIN_V_TOP
-local SB_MARGIN_V_BOTTOM = core.SB_MARGIN_V_BOTTOM
-local SB_MARK_OVERHANG = core.SB_MARK_OVERHANG
-local SB_MARK_HEIGHT = core.SB_MARK_HEIGHT
-local TOPBAR_HEIGHT = core.TOPBAR_HEIGHT
-local TOPBAR_BOOK_HEIGHT = core.TOPBAR_BOOK_HEIGHT
-local TABS_HEIGHT = core.TABS_HEIGHT
-local FOOTER_BAR_HEIGHT = core.FOOTER_BAR_HEIGHT
-local HEADER_ICON_SIZE = core.HEADER_ICON_SIZE
-local HEADER_ICON_PAD = core.HEADER_ICON_PAD
-local SERIF_FONT = core.SERIF_FONT
-local PLUGIN_DIR = core.PLUGIN_DIR
-local pluginIcon = core.pluginIcon
-local getFaceOr = core.getFaceOr
-local COLORS = core.COLORS
-local HIGHLIGHT_COLORS = core.HIGHLIGHT_COLORS
-local SPIN_MENUS = core.SPIN_MENUS
-local HIGHLIGHT_STYLES = core.HIGHLIGHT_STYLES
-local getHighlightColor = core.getHighlightColor
-local colorName = core.colorName
-local isNoBackgroundStyle = core.isNoBackgroundStyle
-local truncateAuthorDisplay = core.truncateAuthorDisplay
-local NoteWrapper = core.NoteWrapper
-
-local AllNotesViewer  -- injected by main assembly
 local NotesListWidget -- injected by main assembly
 
-local function normalizeColorStyle(af)
+function Data.normalizeColorStyle(af)
     if type(af) ~= "table" then return end
     local function valid(t, v) return (t == "color" or t == "style") and type(v) == "string" and v ~= "" end
     local inc = valid(af.type, af.value)
@@ -159,8 +76,8 @@ local function normalizeColorStyle(af)
     end
     if af.cs and not next(af.cs) then af.cs, af.cs_exclude = nil, nil end
 end
-local function colorStyleMatches(af, note)
-    local nw = NoteWrapper:new(note)
+function Data.colorStyleMatches(af, note)
+    local nw = core.NoteWrapper:new(note)
     local c, d = nw:getNormalizedColor(), nw:getNormalizedDrawer()
     local has_c, has_s, hit_c, hit_s = false, false, false, false
     for k in pairs(af.cs) do
@@ -176,10 +93,10 @@ local function colorStyleMatches(af, note)
     return (not has_c or hit_c) and (not has_s or hit_s)
 end
 
-local _annotation_cache = {}  -- [book_path] = { data = {...}, mtime = key }
-local _book_info_cache   = {}  -- [book_path] = { data = {...}, mtime = key }
+Data._annotation_cache = {}  -- [book_path] = { data = {...}, mtime = key }
+Data._book_info_cache   = {}  -- [book_path] = { data = {...}, mtime = key }
 
-local function fileStamp(path)
+function Data.fileStamp(path)
     local attr = path and lfs.attributes(path)
     if attr and attr.mode == "file" then
         return attr.modification .. ":" .. attr.size
@@ -193,39 +110,63 @@ end
 -- (open() deletes empty or broken files): every place KOReader keeps one (book folder, docsettings
 -- folder, hash folder when in use, history folder, and their ".old" backups), the most recently
 -- changed first; a backup never goes before its own file.
-local function getSidecarKey(book_path)
-    local ok, sidecar = pcall(function()
-        local list = NotesListWidget.sidecarCandidates(book_path)
-        for i = 1, #list do
-            if list[i].size > 0 then return list[i].path end -- open() skips empty files
-        end
+function Data.getSidecarKey(book_path)
+    local ok, list = pcall(function()
+        return NotesListWidget.sidecarCandidates(book_path)
     end)
-    local stamp = ok and type(sidecar) == "string" and fileStamp(sidecar)
-    if stamp then return stamp, sidecar end
+    if ok and type(list) == "table" then
+        -- readSidecar() may fall back to a ".old" backup or another location, so key on every
+        -- readable candidate: a change to any of them must invalidate the cache.
+        local parts, sidecar = nil, nil
+        for i = 1, #list do
+            local c = list[i]
+            if c.size > 0 then
+                parts = parts or {}
+                parts[#parts + 1] = c.path .. ":" .. (c.mtime or "") .. ":" .. c.size
+                if not sidecar then sidecar = c.path end
+            end
+        end
+        if sidecar then return table.concat(parts, "|"), sidecar end
+    end
     -- Fall back to the book file itself. false: KOReader looked and there is no sidecar;
     -- nil: it couldn't look (`a and false or nil` would always give nil)
     local none = nil
     if ok then none = false end
-    return "book:" .. (fileStamp(book_path) or ""), none
+    return "book:" .. (Data.fileStamp(book_path) or ""), none
 end
 
--- Key for the book info (title/authors/tags): the sidecar key plus the custom metadata file,
--- which KOReader keeps next to the sidecar and updates when book info is edited.
-local function getBookInfoKey(sidecar_key, sidecar)
-    local dir = sidecar and sidecar:match("^(.*)/")
-    return sidecar_key .. "|" .. ((dir and fileStamp(dir .. "/custom_metadata.lua")) or "")
+-- Key for the book info (title/authors/tags): the sidecar key plus the custom metadata file
+-- actually read. custom_metadata_file is the path returned by DocSettings:findCustomMetadataFile,
+-- which may live in a different folder from the sidecar; the sidecar directory is only a fallback
+-- for older KOReader that has no such API.
+function Data.getBookInfoKey(sidecar_key, sidecar, custom_metadata_file)
+    local stamp
+    if type(custom_metadata_file) == "string" then
+        stamp = Data.fileStamp(custom_metadata_file) or ""
+    else
+        local dir = sidecar and sidecar:match("^(.*)/")
+        stamp = (dir and Data.fileStamp(dir .. "/custom_metadata.lua")) or ""
+    end
+    return sidecar_key .. "|" .. stamp
 end
 
 -- On-disk copy of the caches above, so a KOReader restart doesn't mean parsing every
 -- book's sidecar again. Bump CACHE_VERSION whenever the cached data's shape changes.
-local CACHE_VERSION = 5 -- 3: bookmarks and page labels are kept; 4: old-format books marked legacy, with notes;
+Data.CACHE_VERSION = 5 -- 3: bookmarks and page labels are kept; 4: old-format books marked legacy, with notes;
                         -- 5: book info keeps series and language
-local _persist = nil        -- LuaSettings object, loaded on the first scan
-local _persist_dirty = false
-local _persist_count = 0
+Data._persist = nil        -- LuaSettings object, loaded on the first scan
+Data._persist_dirty = false
+Data._persist_paths = nil -- signature of the path set last written to disk
 
-local function loadPersistentCache()
-    if _persist then return end
+local function pathSignature(paths)
+    local sorted = {}
+    for i = 1, #paths do sorted[i] = paths[i] end
+    table.sort(sorted)
+    return table.concat(sorted, "\0")
+end
+
+function Data.loadPersistentCache()
+    if Data._persist then return end
     local ok_ds, DataStorage = pcall(require, "datastorage")
     local ok_ls, LuaSettings = pcall(require, "luasettings")
     if not (ok_ds and ok_ls) then return end
@@ -233,33 +174,35 @@ local function loadPersistentCache()
     if lfs.attributes(dir, "mode") ~= "directory" then lfs.mkdir(dir) end
     local ok, settings = pcall(LuaSettings.open, LuaSettings, dir .. "/annotationsviewer.lua")
     if not ok or not settings then return end
-    _persist = settings
+    Data._persist = settings
     local d = settings.data
-    if d.version ~= CACHE_VERSION or type(d.books) ~= "table" then
-        settings.data = { version = CACHE_VERSION, books = {} }
-        _persist_dirty = true
+    if d.version ~= Data.CACHE_VERSION or type(d.books) ~= "table" then
+        settings.data = { version = Data.CACHE_VERSION, books = {} }
+        Data._persist_dirty = true
         return
     end
-    _persist_count = 0
     for path, b in pairs(d.books) do
-        _persist_count = _persist_count + 1
-        if not _annotation_cache[path] and b.key and b.annotations then
-            _annotation_cache[path] = { data = b.annotations, mtime = b.key }
+        if not Data._annotation_cache[path] and b.key and b.annotations then
+            Data._annotation_cache[path] = { data = b.annotations, mtime = b.key }
         end
-        if not _book_info_cache[path] and b.info_key and b.info then
-            _book_info_cache[path] = { data = b.info, mtime = b.info_key }
+        if not Data._book_info_cache[path] and b.info_key and b.info then
+            Data._book_info_cache[path] = { data = b.info, mtime = b.info_key }
         end
     end
+    -- _persist_paths stays nil: the saved "books" only holds annotated books, not the full
+    -- scanned set, so the first scan of a session writes once and then records the real set.
 end
 
 -- Writes the caches for the given books (the ones found by the last scan) back to disk,
 -- but only if something was read from a sidecar since the last save.
-local function savePersistentCache(paths)
-    if not _persist then return end
-    if not _persist_dirty and #paths == _persist_count then return end
+function Data.savePersistentCache(paths)
+    if not Data._persist then return end
+    local sig = pathSignature(paths)
+    -- A same-sized but different set of paths must still be saved, so compare the set, not its size.
+    if not Data._persist_dirty and sig == Data._persist_paths then return end
     local books = {}
     for _, path in ipairs(paths) do
-        local a, i = _annotation_cache[path], _book_info_cache[path]
+        local a, i = Data._annotation_cache[path], Data._book_info_cache[path]
         if a then
             books[path] = {
                 key = a.mtime, annotations = a.data,
@@ -267,16 +210,21 @@ local function savePersistentCache(paths)
             }
         end
     end
-    _persist.data = { version = CACHE_VERSION, books = books }
-    local ok, err = pcall(_persist.flush, _persist)
-    if not ok then logger.warn("AnnotationsViewer: could not save cache:", err) end
-    _persist_dirty = false
-    _persist_count = #paths
+    Data._persist.data = { version = Data.CACHE_VERSION, books = books }
+    -- LuaSettings:flush returns self even when the underlying write silently fails, so only a
+    -- raised error is detectable here. On failure keep the state so the next scan retries.
+    local ok, err = pcall(Data._persist.flush, Data._persist)
+    if not ok then
+        logger.warn("AnnotationsViewer: could not save cache:", err)
+        return
+    end
+    Data._persist_dirty = false
+    Data._persist_paths = sig
 end
 
 -- Write-back helpers -------------------------------------------------------------------
 
-local function positionsEqual(a, b)
+function Data.positionsEqual(a, b)
     if a == b then return true end
     if type(a) == "table" and type(b) == "table" then -- PDF/CBZ positions
         return a.x == b.x and a.y == b.y and a.page == b.page
@@ -287,21 +235,23 @@ end
 -- Does a stored or live annotation item correspond to this plugin note?
 -- Matches on date, highlighted text and position, so two highlights saved in the same
 -- second with the same text are told apart.
-local function itemMatchesNote(item, note)
+function Data.itemMatchesNote(item, note)
     -- the list keeps "" for an item without a date, so compare both the same way
     if (item.datetime or "") ~= (note.datetime or "") then return false end
     if note.bookmark then -- a bookmark has no text of its own: match on its place
-        return item.drawer == nil and positionsEqual(item.page or item.pageno, note.page)
+        return item.drawer == nil and Data.positionsEqual(item.page or item.pageno, note.page)
     end
     if (item.text or "") ~= (note.highlighted_text or "") then return false end
     if note.pos0 ~= nil then
-        return positionsEqual(item.pos0, note.pos0) and positionsEqual(item.pos1, note.pos1)
+        return Data.positionsEqual(item.pos0, note.pos0) and Data.positionsEqual(item.pos1, note.pos1)
     end
-    return true
+    -- no xpointer (old EPUB sidecars, or hand-edited data): fall back to the page so two
+    -- same-second, same-text highlights on different pages aren't mistaken for each other
+    return Data.positionsEqual(item.page or item.pageno, note.page)
 end
 
 -- Returns the ReaderUI if this book is currently open, so changes go through KOReader.
-local function getLiveReader(book_path)
+function Data.getLiveReader(book_path)
     local ReaderUI = require("apps/reader/readerui")
     local ui = ReaderUI and ReaderUI.instance
     if ui and ui.document and NotesListWidget.samePath(ui.document.file, book_path)
@@ -310,22 +260,22 @@ local function getLiveReader(book_path)
     end
 end
 
-local function findLiveIndex(ui, note)
+function Data.findLiveIndex(ui, note)
     for i, item in ipairs(ui.annotation.annotations) do
-        if itemMatchesNote(item, note) then return i end
+        if Data.itemMatchesNote(item, note) then return i end
     end
 end
 
 -- Finds the annotation for `note` in its (closed) book's sidecar, calls fn(item, list, index)
 -- on it and saves the sidecar. Returns true if the annotation was found.
-local function editStoredAnnotation(note, fn)
+function Data.editStoredAnnotation(note, fn)
     local ok, doc_settings = pcall(DocSettings.open, DocSettings, note.book_path)
     if not ok or not doc_settings or not doc_settings.data then return false end
     local data = doc_settings.data
     local found = false
     if type(data.annotations) == "table" then
         for i, item in ipairs(data.annotations) do
-            if itemMatchesNote(item, note) then
+            if Data.itemMatchesNote(item, note) then
                 fn(item, data.annotations, i)
                 found = true
                 break
@@ -333,15 +283,18 @@ local function editStoredAnnotation(note, fn)
         end
     end
     -- an old-format sidecar (no `annotations` list) is never written: see AllNotesViewer.legacyBlocked
-    if found then doc_settings:flush() end
-    return found
+    if not found then return false end
+    -- DocSettings:flush returns the sidecar dir on success, nil if every write failed, and may
+    -- raise. Only report success once the data actually reached disk.
+    local ok, saved = pcall(doc_settings.flush, doc_settings)
+    return ok and saved ~= nil
 end
 
-local function nowStamp() return os.date("%Y-%m-%d %H:%M:%S") end
+function Data.nowStamp() return os.date("%Y-%m-%d %H:%M:%S") end
 
 -- Changes the style or colour of a highlight in the open book, the way ReaderHighlight does
 -- (including the PDF annotation), and tells KOReader about the real item.
-local function setLiveHighlightField(ui, index, field, value)
+function Data.setLiveHighlightField(ui, index, field, value)
     local item = ui.annotation.annotations[index]
     local hl = ui.highlight
     local pdf = hl and hl.writePdfAnnotation
@@ -355,51 +308,27 @@ local function setLiveHighlightField(ui, index, field, value)
     UIManager:setDirty(ui.dialog) -- repainted with the new colour / style when the list closes
 end
 
-
--- Module exports
-M.normalizeColorStyle = normalizeColorStyle
-M.colorStyleMatches = colorStyleMatches
-M._annotation_cache = _annotation_cache
-M._book_info_cache = _book_info_cache
-M.fileStamp = fileStamp
-M.getSidecarKey = getSidecarKey
-M.getBookInfoKey = getBookInfoKey
-M.CACHE_VERSION = CACHE_VERSION
-M._persist = _persist
-M._persist_dirty = _persist_dirty
-M._persist_count = _persist_count
-M.loadPersistentCache = loadPersistentCache
-M.savePersistentCache = savePersistentCache
-M.positionsEqual = positionsEqual
-M.itemMatchesNote = itemMatchesNote
-M.getLiveReader = getLiveReader
-M.findLiveIndex = findLiveIndex
-M.editStoredAnnotation = editStoredAnnotation
-M.nowStamp = nowStamp
-M.setLiveHighlightField = setLiveHighlightField
-
 -- Cache state is module-local (loadPersistentCache replaces _persist at runtime), so callers
 -- reach the scalars through these accessors rather than capturing a stale snapshot.
-function M.clearCaches()
-    for k in pairs(_annotation_cache) do _annotation_cache[k] = nil end
-    for k in pairs(_book_info_cache) do _book_info_cache[k] = nil end
-    if _persist then
-        _persist.data = { version = CACHE_VERSION, books = {} }
-        pcall(_persist.flush, _persist)
+function Data.clearCaches()
+    for k in pairs(Data._annotation_cache) do Data._annotation_cache[k] = nil end
+    for k in pairs(Data._book_info_cache) do Data._book_info_cache[k] = nil end
+    if Data._persist then
+        Data._persist.data = { version = Data.CACHE_VERSION, books = {} }
+        pcall(Data._persist.flush, Data._persist)
     end
-    _persist, _persist_dirty, _persist_count = nil, false, 0
+    Data._persist, Data._persist_dirty, Data._persist_paths = nil, false, nil
 end
-function M.invalidateBook(book_path)
-    _annotation_cache[book_path] = nil
+function Data.invalidateBook(book_path)
+    Data._annotation_cache[book_path] = nil
     -- book_info rarely changes, but clear it too so tags/title edits are reflected
-    _book_info_cache[book_path] = nil
+    Data._book_info_cache[book_path] = nil
 end
-function M.markPersistDirty() _persist_dirty = true end
-function M.isPersistLoaded() return _persist ~= nil end
+function Data.markPersistDirty() Data._persist_dirty = true end
+function Data.isPersistLoaded() return Data._persist ~= nil end
 
-function M.bind(deps)
-    if deps.AllNotesViewer then AllNotesViewer = deps.AllNotesViewer end
+function Data.bind(deps)
     if deps.NotesListWidget then NotesListWidget = deps.NotesListWidget end
 end
 
-return M
+return Data

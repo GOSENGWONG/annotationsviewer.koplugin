@@ -71,16 +71,51 @@ do
     if ok and type(lfs) == "table" then real["libs/libkoreader-lfs"] = lfs end
 end
 local real_require = require
+local stubs = {}
 require = function(name) -- luacheck: ignore
     if real[name] ~= nil then return real[name] end
     local ok, mod = pcall(real_require, name)
     if ok then return mod end
-    return stub()
+    if not stubs[name] then stubs[name] = stub() end
+    return stubs[name]
 end
 
 local plugin = dofile("main.lua")
-local T = plugin._test
-assert(T, "main.lua must expose _test")
+
+-- Assemble the test-facing internals here; main.lua ships no test hooks.
+local m_text   = require("anv_text")
+local m_sort   = require("anv_sort")
+local m_data   = require("anv_data")
+local m_core   = require("anv_core")
+local m_export = require("anv_export")
+local m_list   = require("anv_list")
+local m_item   = require("anv_item")
+local T = {
+    wrapText = m_text.wrapText,
+    normalizeBookTitle = m_sort.normalizeBookTitle,
+    SORT_COMPARATORS = m_sort.SORT_COMPARATORS,
+    SortState = m_sort.SortState,
+    filterToString = m_text.filterToString,
+    sortModeLabel = m_sort.sortModeLabel,
+    itemMatchesNote = m_data.itemMatchesNote,
+    legacyNotes = plugin.legacyNotes,
+    samePath = plugin.samePath,
+    getSidecarKey = m_data.getSidecarKey,
+    normalizeColorStyle = m_data.normalizeColorStyle,
+    ReaderHighlight = require("apps/reader/modules/readerhighlight"),
+    UIManager = require("ui/uimanager"),
+    COLORS = m_core.COLORS,
+    readSidecar = plugin.readSidecar,
+    DocSettings = require("docsettings"),
+    notesToMarkdown = m_export.notesToMarkdown,
+    Export = m_export,
+    setSetting = m_core.setSetting,
+    getSetting = m_core.getSetting,
+    NotesListWidget = m_list.NotesListWidget,
+    NoteItemWidget = m_item.NoteItemWidget,
+    listNote = plugin.listNote,
+    splitTags = plugin.splitTags,
+}
 
 local passed, failed = 0, 0
 local function check(name, cond, detail)
@@ -916,7 +951,7 @@ check("chips still count several books", fw:getFilterChips()[1].label == "Hide 2
 
 -- menu pages: a heading never ends a page, a block taller than a page is split into its rows
 do
-    local P = T.NotesListWidget.Page
+    local P = T.NotesListWidget
     local function row(h, keep) return { getSize = function() return { w = 10, h = h } end, keep_with_next = keep } end
     -- 100 per page (avail 130 - bar 30): rows 60, heading 20, then 50 -> the heading goes to page 2
     local rows = { row(60), row(20, true), row(50), row(40) }
@@ -1031,7 +1066,7 @@ do
     UI.setDirty = function(_, w, mode) dirty[#dirty + 1] = { w = w, mode = mode } end
     UI.isWidgetShown = function() return true end
     local cls = {}
-    LW.Page.watchResize(cls)
+    LW.watchResize(cls)
     local built = 0
     local w = setmetatable({ dimen = { w = 800, h = 600 }, build = function() built = built + 1 end }, { __index = cls })
     pcall(cls.paintTo, w, nil, 0, 0)
@@ -1122,12 +1157,18 @@ do
         local clean = ok or not tostring(err):find("global '" .. symbol .. "'", 1, true)
         check(name, clean, tostring(ok) .. " " .. tostring(err))
     end
-    noNilGlobal("cache: loadBookAnnotations reaches cache state", function()
+    -- The cache path must really run: a nil "field" error (an alias shadowed by a local) used to
+    -- pass the weaker check above, while the same call crashed on the device.
+    local function noError(name, fn)
+        local ok, err = pcall(fn)
+        check(name, ok, tostring(ok) .. " " .. tostring(err))
+    end
+    noError("cache: loadBookAnnotations reaches cache state", function()
         plugin:loadBookAnnotations("/probe/book.pdf", "probe-key", "/probe/book.sdr")
-    end, "_annotation_cache")
-    noNilGlobal("cache: getBookInfo reaches cache state", function()
+    end)
+    noError("cache: getBookInfo reaches cache state", function()
         plugin:getBookInfo("/probe/book.pdf", nil, "probe-key", "/probe/book.sdr")
-    end, "_book_info_cache")
+    end)
     local SS = T.NotesListWidget.SettingsScreen
     noNilGlobal("settings: SS.build finds forward SubPage", function()
         SS.build(setmetatable({ list = { active_filter = {} }, page = "text" }, { __index = SS }))

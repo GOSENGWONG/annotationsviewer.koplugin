@@ -1,120 +1,23 @@
-local M = {}
+-- anv_export.lua — Annotations Viewer
+--
+-- Export engine: renders a note list to Markdown or plain text and writes
+-- the result to disk. Grouping, date/author/highlight formatting and
+-- escaping are configurable through the options table.
+--
+-- Public API (used by other modules):
+--   build / notesToMarkdown    render notes into export lines / Markdown
+--   write    resolve paths and save the export file(s)
+--   options    current default export options
+--   files / dir / shortDir    resolve export file paths and directories
+--   allBookmarks    whether a note set represents all bookmarks
 
+local Export = {}
+
+local lfs  = require("libs/libkoreader-lfs")
 local core = require("anv_core")
-
-local WidgetContainer = core.WidgetContainer
-local ReaderHighlight = core.ReaderHighlight
-local FrameContainer = core.FrameContainer
-local VerticalGroup = core.VerticalGroup
-local VerticalSpan = core.VerticalSpan
-local Event = core.Event
-local HorizontalGroup = core.HorizontalGroup
-local HorizontalSpan = core.HorizontalSpan
-local LeftContainer = core.LeftContainer
-local TopContainer = core.TopContainer
-local BottomContainer = core.BottomContainer
-local OverlapGroup = core.OverlapGroup
-local CenterContainer = core.CenterContainer
-local TextBoxWidget = core.TextBoxWidget
-local TextWidget = core.TextWidget
-local InputContainer = core.InputContainer
-local GestureRange = core.GestureRange
-local UIManager = core.UIManager
-local InfoMessage = core.InfoMessage
-local TextViewer = core.TextViewer
-local SpinWidget = core.SpinWidget
-local IconButton = core.IconButton
-local IconWidget = core.IconWidget
-local LineWidget = core.LineWidget
-local RightContainer = core.RightContainer
-local BlitBuffer = core.BlitBuffer
-local Screen = core.Screen
-local Device = core.Device
-local Input = core.Input
-local logger = core.logger
-local FontList = core.FontList
-local DocSettings = core.DocSettings
-local ReadHistory = core.ReadHistory
-local G_reader_settings = core.G_reader_settings
-local lfs = core.lfs
-local Font = core.Font
-local Size = core.Size
-local Geom = core.Geom
-local _ = core._
-local BD = core.BD
-
-local DEFAULT_CONTENT_FONT_SIZE = core.DEFAULT_CONTENT_FONT_SIZE
-local DEFAULT_TITLE_FONT_SIZE = core.DEFAULT_TITLE_FONT_SIZE
-local DEFAULT_INFO_FONT_SIZE = core.DEFAULT_INFO_FONT_SIZE
-local DEFAULT_H_MARGIN = core.DEFAULT_H_MARGIN
-local DEFAULT_NOTE_SPACING = core.DEFAULT_NOTE_SPACING
-local DEFAULT_TEXT_MARGIN = core.DEFAULT_TEXT_MARGIN
-local DEFAULT_TRUNCATE_LINES = core.DEFAULT_TRUNCATE_LINES
-local DEFAULT_TITLE_MARGIN = core.DEFAULT_TITLE_MARGIN
-local DEFAULT_INFO_MARGIN = core.DEFAULT_INFO_MARGIN
-local DEFAULT_TOP_PADDING = core.DEFAULT_TOP_PADDING
-local getSetting = core.getSetting
-local setSetting = core.setSetting
-local flushSettings = core.flushSettings
-local getContentFontSize = core.getContentFontSize
-local getTitleFontSize = core.getTitleFontSize
-local getInfoFontSize = core.getInfoFontSize
-local getHMargin = core.getHMargin
-local getNoteSpacing = core.getNoteSpacing
-local getTextMargin = core.getTextMargin
-local getTruncateLines = core.getTruncateLines
-local getJustify = core.getJustify
-local getTitleMargin = core.getTitleMargin
-local getInfoMargin = core.getInfoMargin
-local getTitleFont = core.getTitleFont
-local getInfoFont = core.getInfoFont
-local getContentFont = core.getContentFont
-local getShowTotalNotes = core.getShowTotalNotes
-local getTopPadding = core.getTopPadding
-local getHideDupTitle = core.getHideDupTitle
-local getHideDupInfo = core.getHideDupInfo
-local getSwipeSetting = core.getSwipeSetting
-local getDedupInfoFields = core.getDedupInfoFields
-local getShowInfo = core.getShowInfo
-local getInfoFields = core.getInfoFields
-local getAlwaysShowFirstOnPage = core.getAlwaysShowFirstOnPage
-local getRepeatTitleOnPage = core.getRepeatTitleOnPage
-local getRepeatInfoOnPage = core.getRepeatInfoOnPage
-local getHeaderSkips = core.getHeaderSkips
-local getPaginationStyle = core.getPaginationStyle
-local getScrollbarBookMarks = core.getScrollbarBookMarks
-local isScrollbarStyle = core.isScrollbarStyle
-local getNoteInfoKey = core.getNoteInfoKey
-local BOOK_GAP = core.BOOK_GAP
-local SB_THUMB_WIDTH = core.SB_THUMB_WIDTH
-local SB_TRACK_WIDTH = core.SB_TRACK_WIDTH
-local SB_STRIP_WIDTH = core.SB_STRIP_WIDTH
-local SB_MARGIN_RIGHT = core.SB_MARGIN_RIGHT
-local SB_MARGIN_V_TOP = core.SB_MARGIN_V_TOP
-local SB_MARGIN_V_BOTTOM = core.SB_MARGIN_V_BOTTOM
-local SB_MARK_OVERHANG = core.SB_MARK_OVERHANG
-local SB_MARK_HEIGHT = core.SB_MARK_HEIGHT
-local TOPBAR_HEIGHT = core.TOPBAR_HEIGHT
-local TOPBAR_BOOK_HEIGHT = core.TOPBAR_BOOK_HEIGHT
-local TABS_HEIGHT = core.TABS_HEIGHT
-local FOOTER_BAR_HEIGHT = core.FOOTER_BAR_HEIGHT
-local HEADER_ICON_SIZE = core.HEADER_ICON_SIZE
-local HEADER_ICON_PAD = core.HEADER_ICON_PAD
-local SERIF_FONT = core.SERIF_FONT
-local PLUGIN_DIR = core.PLUGIN_DIR
-local pluginIcon = core.pluginIcon
-local getFaceOr = core.getFaceOr
-local COLORS = core.COLORS
-local HIGHLIGHT_COLORS = core.HIGHLIGHT_COLORS
-local SPIN_MENUS = core.SPIN_MENUS
-local HIGHLIGHT_STYLES = core.HIGHLIGHT_STYLES
-local getHighlightColor = core.getHighlightColor
-local colorName = core.colorName
-local isNoBackgroundStyle = core.isNoBackgroundStyle
-local truncateAuthorDisplay = core.truncateAuthorDisplay
-local NoteWrapper = core.NoteWrapper
-
-local STYLE_NAMES = require("anv_sort").STYLE_NAMES
+local sort = require("anv_sort")
+local text = require("anv_text")
+local _ = require("anv_i18n").gettext
 
 -- Formatting a long date uses anv_item (which loads later); resolve it lazily.
 local _item_for_date
@@ -123,7 +26,6 @@ local function NIW()
     return _item_for_date
 end
 
-local Export = {}
 Export.DEFAULTS = {
     format = "md",        -- "md" | "txt"
     header = true,        -- "Annotations" title and the filter line at the top
@@ -144,7 +46,7 @@ Export.DEFAULTS = {
 function Export.options()
     local o = {}
     for k, v in pairs(Export.DEFAULTS) do
-        local s = getSetting("export_" .. k, nil)
+        local s = core.getSetting("export_" .. k, nil)
         if s == nil or type(s) ~= type(v) then o[k] = v else o[k] = s end
     end
     return o
@@ -236,9 +138,9 @@ function Export.addBook(out, g, o)
             if page_no ~= nil and page_no ~= "" then table.insert(meta, _("page") .. " " .. Export.esc(page_no, md)) end
         end
         if o.style and not note.bookmark then
-            if note.color and note.color ~= "" then table.insert(meta, Export.esc(colorName(note.color:lower()), md)) end
+            if note.color and note.color ~= "" then table.insert(meta, Export.esc(core.colorName(note.color:lower()), md)) end
             local drawer = note.drawer and note.drawer:lower()
-            if drawer and drawer ~= "" then table.insert(meta, Export.esc(STYLE_NAMES[drawer] or drawer, md)) end
+            if drawer and drawer ~= "" then table.insert(meta, Export.esc(sort.STYLE_NAMES[drawer] or drawer, md)) end
         end
         if #meta > 0 then
             local line = table.concat(meta, " · ")
@@ -286,7 +188,7 @@ function Export.addBook(out, g, o)
             end
         end
         if o.tags then
-            local tags = NoteWrapper:new(note):getTags()
+            local tags = core.NoteWrapper:new(note):getTags()
             if type(tags) == "table" and #tags > 0 then
                 local esc = {}
                 for j, t in ipairs(tags) do esc[j] = Export.esc(t, md) end
@@ -328,7 +230,7 @@ end
 function Export.fileName(base, o, used, stamp)
     base = tostring(base or ""):gsub("[%c/\\:%*%?\"<>|]", "_")
     base = base:gsub("^[%s%.]+", ""):gsub("[%s%.]+$", "")
-    if #base > 80 then base = base:sub(1, 80):gsub("[\192-\255][\128-\191]*$", "") end
+    if #base > 80 then base = text.utf8Prefix(base, 80) end
     if base == "" then base = "annotations" end
     if o.name_date then base = base .. "-" .. (stamp or os.date("%Y%m%d-%H%M%S")) end
     local name, i = base, 2
@@ -361,7 +263,7 @@ function Export.defaultDir()
     return DataStorage:getDataDir() .. "/exports"
 end
 function Export.dir()
-    local d = getSetting("export_dir", nil)
+    local d = core.getSetting("export_dir", nil)
     if type(d) ~= "string" or d == "" then d = Export.defaultDir() end
     return d
 end
@@ -423,8 +325,4 @@ function Export.allBookmarks(notes)
     return true
 end
 
-
--- Module exports
-M.Export = Export
-
-return M
+return Export

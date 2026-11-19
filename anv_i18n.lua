@@ -1,8 +1,21 @@
+-- anv_i18n.lua — Annotations Viewer
+--
+-- Leaf localization layer for Annotations Viewer's own strings. Its gettext
+-- checks the bundled .po catalogs first and falls back to KOReader's gettext,
+-- without modifying the global gettext module. To add a language, copy
+-- locale/annotationsviewer.pot to locale/<lang>.po and fill in the msgstr
+-- values; no code changes are needed.
+--
+-- Public API (used by other modules):
+--   gettext    translate a msgid via catalogs, then KOReader gettext
+
 local logger = require("logger")
 local _dir   = (debug.getinfo(1, "S").source:match("^@(.+/)") or "./")
 
+local I18n = {}
+
 -- Minimal .po parser
-local function parsePO(path)
+function I18n._parsePO(path)
     local f = io.open(path, "r")
     if not f then return nil end
 
@@ -57,7 +70,7 @@ local function parsePO(path)
     return map
 end
 
-local function detectLang()
+function I18n.getLang()
     local lang = G_reader_settings and G_reader_settings:readSetting("language")
     if type(lang) == "string" and lang ~= "" then return lang end
     local lc = os.getenv("LANG") or os.getenv("LC_ALL") or os.getenv("LC_MESSAGES") or ""
@@ -69,11 +82,11 @@ end
 local ko_gettext = require("gettext")
 local translations
 
-local lang = detectLang()
+local lang = I18n.getLang()
 if lang ~= "en" and lang ~= "en_US" then
     local function try(name)
         local path = _dir .. "locale/" .. name .. ".po"
-        local t = parsePO(path)
+        local t = I18n._parsePO(path)
         if t and next(t) then
             local n = 0; for _ in pairs(t) do n = n + 1 end
             logger.info("AnnotationsViewer i18n: loaded " .. path .. " — " .. n .. " strings")
@@ -91,7 +104,7 @@ if lang ~= "en" and lang ~= "en_US" then
 end
 
 --- Translation function: checks .po first, then KOReader gettext.
-local function gettext(msgid)
+function I18n.gettext(msgid)
     if translations then
         local t = translations[msgid]
         if t then return t end
@@ -99,8 +112,4 @@ local function gettext(msgid)
     return ko_gettext(msgid)
 end
 
-return {
-    gettext = gettext,
-    getLang = detectLang,
-    _parsePO = parsePO,  -- exposed for tests
-}
+return I18n
